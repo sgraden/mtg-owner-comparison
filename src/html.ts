@@ -554,13 +554,16 @@ export const html = `<!DOCTYPE html>
           <h1>🃏 MTG Card Comparison</h1>
           <p class="subtitle">Upload your card lists and compare ownership across friends</p>
         </div>
-        <div class="image-toggle" style="margin-right: 20px; display: flex; align-items: center; gap: 12px;">
-          <label style="color: #d4af37; font-weight: 600;">Local Mode:</label>
-          <label class="toggle-switch">
-            <input type="checkbox" id="localModeToggle" onchange="toggleLocalMode()">
-            <span class="toggle-slider"></span>
-          </label>
-          <button id="resetToBackupBtn" class="btn-secondary btn-small" onclick="resetToBackup()" style="display: none;">Reset to Backup</button>
+        <div style="display: flex; align-items: center; gap: 12px; margin-right: 20px;">
+          <button class="btn-primary btn-small" id="shareViewOnlyBtn" onclick="copyViewOnlyLink()">Share View Only</button>
+          <div class="image-toggle" style="display: flex; align-items: center; gap: 12px;">
+            <label style="color: #d4af37; font-weight: 600;">Local Mode:</label>
+            <label class="toggle-switch">
+              <input type="checkbox" id="localModeToggle" onchange="toggleLocalMode()">
+              <span class="toggle-slider"></span>
+            </label>
+            <button id="resetToBackupBtn" class="btn-secondary btn-small" onclick="resetToBackup()" style="display: none;">Reset to Backup</button>
+          </div>
         </div>
       </div>
     </header>
@@ -683,6 +686,11 @@ export const html = `<!DOCTYPE html>
     let localModeHasChanges = false;
     let backupData = null;
     const LOCAL_MODE_KEY = 'mtg-local-mode';
+    let viewOnlyMode = false;
+
+    // Image fetching
+    let imageAbortController = null;
+    let pendingImageRequests = new Set();
 
     // Cache management for card images
     const CACHE_KEY = 'mtg-card-cache';
@@ -729,6 +737,15 @@ export const html = `<!DOCTYPE html>
     function toggleImages() {
       imagesEnabled = document.getElementById('imageToggle').checked;
       localStorage.setItem(IMAGES_ENABLED_KEY, imagesEnabled);
+      
+      if (!imagesEnabled) {
+        // Cancel pending image requests
+        if (imageAbortController) {
+          imageAbortController.abort();
+          imageAbortController = null;
+        }
+      }
+      
       updateComparison();
     }
 
@@ -1087,9 +1104,42 @@ export const html = `<!DOCTYPE html>
       }
     }
 
+    function initViewOnlyMode() {
+      const params = new URLSearchParams(window.location.search);
+      viewOnlyMode = params.get('view') === 'only';
+      
+      // Hide controls in view-only mode
+      if (viewOnlyMode) {
+        // Hide upload controls but keep info sections visible
+        document.getElementById('primaryDropZone').style.display = 'none';
+        document.getElementById('primaryStatus').style.display = 'none';
+        document.querySelectorAll('button[onclick*="deletePrimaryList"]').forEach(el => el.style.display = 'none');
+        
+        document.getElementById('uploaderName').style.display = 'none';
+        document.querySelector('label[for="uploaderName"]').style.display = 'none';
+        document.getElementById('ownedDropZone').style.display = 'none';
+        document.getElementById('ownedStatus').style.display = 'none';
+        document.querySelectorAll('button[onclick*="uploadOwnedList"]').forEach(el => el.style.display = 'none');
+        
+        document.getElementById('shareViewOnlyBtn').style.display = 'none';
+        document.querySelector('.image-toggle').style.display = 'none';
+      }
+    }
+
+    function copyViewOnlyLink() {
+      const viewOnlyUrl = window.location.origin + window.location.pathname + '?view=only';
+      navigator.clipboard.writeText(viewOnlyUrl).then(() => {
+        alert('View-only link copied to clipboard!');
+      }).catch(err => {
+        console.error('Failed to copy:', err);
+        alert('Failed to copy link. Please try again.');
+      });
+    }
+
     function updateUI() {
       initImageToggle();
       initLocalMode();
+      initViewOnlyMode();
       updatePrimaryListInfo();
       updateFilterPrimaryLists();
       updateListsList();
@@ -1110,7 +1160,7 @@ export const html = `<!DOCTYPE html>
             <div class="list-item-name">\${list.name}</div>
             <div class="list-item-count">\${list.cards.length} cards</div>
           </div>
-          <button class="btn-secondary btn-small" onclick="deletePrimaryList('\${list.name}')">Remove</button>
+          \${viewOnlyMode ? '' : \`<button class="btn-secondary btn-small" onclick="deletePrimaryList('\${list.name}')">Remove</button>\`}
         </div>
       \`).join('');
     }
@@ -1128,7 +1178,7 @@ export const html = `<!DOCTYPE html>
             <div class="list-item-name">\${list.uploaderName}</div>
             <div class="list-item-count">\${list.cards.length} cards</div>
           </div>
-          <button class="btn-secondary btn-small" onclick="deleteList('\${list.uploaderName}')">Remove</button>
+          \${viewOnlyMode ? '' : \`<button class="btn-secondary btn-small" onclick="deleteList('\${list.uploaderName}')">Remove</button>\`}
         </div>
       \`).join('');
     }
@@ -1333,11 +1383,20 @@ export const html = `<!DOCTYPE html>
       
       // Only fetch images if enabled
       if (imagesEnabled) {
+        // Create new abort controller for this fetch session
+        imageAbortController = new AbortController();
+        
         // Fetch card images from Scryfall with caching and progressive loading
         const cache = getCardCache();
         
         // Fetch images in background
         for (let i = 0; i < cards.length; i++) {
+          // Check if fetch was aborted
+          if (imageAbortController.signal.aborted) {
+            console.log('Image fetching cancelled');
+            break;
+          }
+
           const card = cards[i];
           
           // Check cache first
@@ -1350,7 +1409,9 @@ export const html = `<!DOCTYPE html>
               // Format card name for Scryfall API: replace spaces with hyphens
               const formattedName = card.name.split(' ').join('-');
               console.log(\`Fetching card: '\${card.name}' -> '\${formattedName}'\`);
-              const response = await fetch(\`https://api.scryfall.com/cards/search?q=!\${encodeURIComponent(formattedName)}&unique=prints\`);
+              const response = await fetch(\`https://api.scryfall.com/cards/search?q=!\${encodeURIComponent(formattedName)}&unique=prints\`, {
+                signal: imageAbortController.signal
+              });
               if (response.ok) {
                 const data = await response.json();
                 if (data.data && data.data.length > 0) {
@@ -1361,7 +1422,9 @@ export const html = `<!DOCTYPE html>
                 }
               }
             } catch (error) {
-              console.error('Error fetching card image:', error);
+              if (error.name !== 'AbortError') {
+                console.error('Error fetching card image:', error);
+              }
             }
             updateCardDisplay(card);
           }

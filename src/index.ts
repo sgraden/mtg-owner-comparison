@@ -11,14 +11,14 @@ interface UploadedList {
   uploadedAt: string;
 }
 
-interface PrimaryList {
+interface NeededCardsList {
   name: string;
   cards: CardData[];
   uploadedAt: string;
 }
 
 interface StorageData {
-  primaryLists: PrimaryList[];
+  primaryLists: NeededCardsList[];
   uploadedLists: UploadedList[];
 }
 
@@ -63,7 +63,7 @@ async function saveStorageData(env: any, data: StorageData): Promise<void> {
     try {
       const jsonData = JSON.stringify(data);
       await env.STORAGE.put('mtg-data', jsonData);
-      console.log('Data saved to R2:', { primaryCards: data.primaryList.length, uploadedLists: data.uploadedLists.length });
+      console.log('Data saved to R2:', { neededCards: data.primaryLists.length, uploadedLists: data.uploadedLists.length });
     } catch (error) {
       console.error('R2 storage error:', error);
       // If R2 fails, at least in-memory is updated

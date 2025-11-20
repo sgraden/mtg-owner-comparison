@@ -32,6 +32,37 @@ export const html = `<!DOCTYPE html>
       box-shadow: 0 0 30px rgba(212, 175, 55, 0.3), inset 0 0 20px rgba(212, 175, 55, 0.1);
     }
 
+    @media (max-width: 768px) {
+      header {
+        padding: 20px;
+      }
+
+      header > div {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+      }
+
+      header > div > div:last-child {
+        flex-direction: column !important;
+        width: 100%;
+        margin-right: 0 !important;
+        margin-top: 15px;
+      }
+
+      header > div > div:last-child > div {
+        width: 100%;
+        flex-direction: column !important;
+      }
+
+      h1 {
+        font-size: 1.8em;
+      }
+
+      .subtitle {
+        font-size: 0.95em;
+      }
+    }
+
     h1 {
       color: #d4af37;
       margin-bottom: 10px;
@@ -49,6 +80,12 @@ export const html = `<!DOCTYPE html>
       grid-template-columns: 1fr 1fr;
       gap: 30px;
       margin-bottom: 30px;
+    }
+
+    @media (max-width: 768px) {
+      .main-grid {
+        grid-template-columns: 1fr;
+      }
     }
 
     .card {
@@ -499,6 +536,23 @@ export const html = `<!DOCTYPE html>
       border: 2px solid #d4af37;
     }
 
+    .table-wrapper {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      margin-bottom: 20px;
+    }
+
+    @media (max-width: 768px) {
+      .table-wrapper {
+        border: 2px solid #d4af37;
+        border-radius: 0;
+      }
+
+      .cards-table {
+        min-width: 600px;
+      }
+    }
+
     .cards-table thead {
       background: #1a1f3a;
       border-bottom: 2px solid #d4af37;
@@ -569,9 +623,9 @@ export const html = `<!DOCTYPE html>
     </header>
 
     <div class="main-grid">
-      <!-- Primary List Upload -->
+      <!-- Needed Cards Upload -->
       <div class="card">
-        <h2>Primary Card List</h2>
+        <h2>Needed Cards</h2>
         <div class="upload-section">
           <div class="upload-group" id="primaryDropZone" style="border: 2px dashed #d4af37; border-radius: 4px; padding: 20px; text-align: center; cursor: pointer; transition: all 0.3s; background: rgba(212, 175, 55, 0.05);">
             <label for="primaryFile" style="cursor: pointer; display: block;">
@@ -582,7 +636,7 @@ export const html = `<!DOCTYPE html>
           </div>
           <div id="primaryStatus" class="status-message"></div>
           <div id="primaryInfo" style="margin-top: 15px; color: #666; font-size: 0.9em;"></div>
-          <button class="btn-secondary btn-small" onclick="deletePrimaryList()" style="margin-top: 10px;">Clear Primary List</button>
+          <button class="btn-secondary btn-small" onclick="deletePrimaryList()" style="margin-top: 10px;">Clear Needed Cards</button>
         </div>
       </div>
 
@@ -658,7 +712,7 @@ export const html = `<!DOCTYPE html>
             </div>
           </div>
           <div>
-            <label style="display: block; margin-bottom: 10px;">Filter by Primary List:</label>
+            <label style="display: block; margin-bottom: 10px;">Filter by Needed Cards List:</label>
             <div id="primaryListFilters" class="filter-labels">
               <div class="filter-label active" data-filter-type="primaryList" data-filter-value="" onclick="toggleFilter(this)">All Lists</div>
             </div>
@@ -1185,13 +1239,13 @@ export const html = `<!DOCTYPE html>
 
     function updateFilterPrimaryLists() {
       const primaryListFilters = document.getElementById('primaryListFilters');
-      const primaryListNames = appData.primaryLists.map(list => list.name);
+      const neededCardsListNames = appData.primaryLists.map(list => list.name);
       
       // Keep "All Lists" button
       let html = '<div class="filter-label active" data-filter-type="primaryList" data-filter-value="" onclick="toggleFilter(this)">All Lists</div>';
       
-      // Add primary list buttons
-      html += primaryListNames.map(name => 
+      // Add needed cards list buttons
+      html += neededCardsListNames.map(name => 
         \`<div class="filter-label" data-filter-type="primaryList" data-filter-value="\${name}" onclick="toggleFilter(this)">\${name}</div>\`
       ).join('');
       
@@ -1498,17 +1552,18 @@ export const html = `<!DOCTYPE html>
         // Table view without images
         container.className = '';
         const headerRow = \`
-          <table class="cards-table">
-            <thead>
-              <tr>
-                <th>Card Name</th>
-                <th>Need</th>
-                <th>Owned</th>
-                <th>Status</th>
-                <th>Owners</th>
-              </tr>
-            </thead>
-            <tbody>
+          <div class="table-wrapper">
+            <table class="cards-table">
+              <thead>
+                <tr>
+                  <th>Card Name</th>
+                  <th>Need</th>
+                  <th>Owned</th>
+                  <th>Status</th>
+                  <th>Owners</th>
+                </tr>
+              </thead>
+              <tbody>
         \`;
         
         const rows = cards.map(card => {
@@ -1539,7 +1594,7 @@ export const html = `<!DOCTYPE html>
           \`;
         }).join('');
         
-        const footerRow = '</tbody></table>';
+        const footerRow = '</tbody></table></div>';
         container.innerHTML = headerRow + rows + footerRow;
       }
     }

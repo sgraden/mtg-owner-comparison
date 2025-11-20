@@ -1631,8 +1631,9 @@ export const html = `<!DOCTYPE html>
     }
 
     function exportToCSV() {
-      const filterStatus = document.getElementById('filterStatus').value;
-      const filterOwner = document.getElementById('filterOwner').value;
+      // Get currently active filters
+      const filterStatuses = Array.from(document.querySelectorAll('.filter-label[data-filter-type="status"].active')).map(el => el.dataset.filterValue);
+      const filterOwners = Array.from(document.querySelectorAll('.filter-label[data-filter-type="owner"].active')).map(el => el.dataset.filterValue).filter(v => v);
 
       const cardMap = new Map();
 
@@ -1673,11 +1674,19 @@ export const html = `<!DOCTYPE html>
         else if (totalOwned > 0) status = 'partial';
         else status = 'missing';
 
-        if (filterStatus !== 'all' && filterStatus !== status) return false;
-        if (filterOwner && !card.owners[filterOwner]) return false;
+        if (!filterStatuses.includes(status) && !filterStatuses.includes('all')) return false;
+        if (filterOwners.length > 0) {
+          const hasAnyOwner = filterOwners.some(owner => card.owners[owner]);
+          if (!hasAnyOwner) return false;
+        }
 
         return true;
       });
+
+      if (cards.length === 0) {
+        alert('No cards to export. Try adjusting your filters.');
+        return;
+      }
 
       const ownerNames = [...new Set(appData.uploadedLists.map(l => l.uploaderName))];
       const headers = ['Card Name', 'Needed', 'Total Owned', 'Status', ...ownerNames];
@@ -1741,10 +1750,9 @@ export const html = `<!DOCTYPE html>
         }
       }
 
-      // Get active filters
-      const filters = getActiveFilters();
-      const filterStatuses = filters.statuses;
-      const filterOwners = filters.owners;
+      // Get currently active filters
+      const filterStatuses = Array.from(document.querySelectorAll('.filter-label[data-filter-type="status"].active')).map(el => el.dataset.filterValue);
+      const filterOwners = Array.from(document.querySelectorAll('.filter-label[data-filter-type="owner"].active')).map(el => el.dataset.filterValue).filter(v => v);
 
       // Filter and format cards for Card Kingdom
       let cards = Array.from(cardMap.values());
@@ -1788,6 +1796,11 @@ export const html = `<!DOCTYPE html>
       })
       .filter(line => line !== null)
       .join('\\n');
+
+      if (!deckList) {
+        alert('No cards need to be purchased based on current filters.');
+        return;
+      }
 
       // Copy to clipboard
       navigator.clipboard.writeText(deckList).then(() => {

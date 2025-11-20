@@ -21,16 +21,26 @@ let memoryStorage: StorageData = { primaryList: [], uploadedLists: [] };
 
 // Helper to get storage data
 async function getStorageData(env: any): Promise<StorageData> {
-  try {
-    // Try to use R2 storage if available
-    if (env.STORAGE) {
-      const data = await env.STORAGE.get('mtg-data');
-      if (data) {
-        return JSON.parse(data);
+  // Always try R2 first (production)
+  if (env.STORAGE) {
+    try {
+      const result = await env.STORAGE.get('mtg-data');
+      if (result) {
+        // R2 returns a GetResult object, need to call .text() to get the string
+        const jsonString = await result.text();
+        const parsed = JSON.parse(jsonString);
+        console.log('Data loaded from R2:', { primaryCards: parsed.primaryList.length, uploadedLists: parsed.uploadedLists.length });
+        return parsed;
+      } else {
+        // No data in R2 yet, return empty
+        console.log('No data in R2 yet, returning empty');
+        return { primaryList: [], uploadedLists: [] };
       }
+    } catch (error) {
+      console.error('R2 storage error:', error);
+      // Fall back to in-memory only if R2 fails
+      return memoryStorage;
     }
-  } catch (error) {
-    console.error('R2 storage error:', error);
   }
   
   // Fallback to in-memory storage for local development
@@ -39,17 +49,33 @@ async function getStorageData(env: any): Promise<StorageData> {
 
 // Helper to save storage data
 async function saveStorageData(env: any, data: StorageData): Promise<void> {
-  // Always update in-memory storage
+  // Always update in-memory storage as backup
   memoryStorage = JSON.parse(JSON.stringify(data));
   
-  // Try to save to R2 if available
-  try {
-    if (env.STORAGE) {
-      await env.STORAGE.put('mtg-data', JSON.stringify(data));
+  // Always try to save to R2 (production)
+  if (env.STORAGE) {
+    try {
+      const jsonData = JSON.stringify(data);
+      await env.STORAGE.put('mtg-data', jsonData);
+      console.log('Data saved to R2:', { primaryCards: data.primaryList.length, uploadedLists: data.uploadedLists.length });
+    } catch (error) {
+      console.error('R2 storage error:', error);
+      // If R2 fails, at least in-memory is updated
     }
-  } catch (error) {
-    console.error('R2 storage error:', error);
+  } else {
+    console.log('No R2 storage available, using in-memory only');
   }
+}
+
+// Sanitize card name by removing quotes and other problematic characters
+function sanitizeCardName(name: string): string {
+  return name
+    .trim()
+    // Remove leading/trailing quotes (single, double, backticks)
+    .replace(/^["'`]+|["'`]+$/g, '')
+    // Remove other problematic characters from start/end
+    .replace(/^[\s\-_:;,|()[\]{}]+|[\s\-_:;,|()[\]{}]+$/g, '')
+    .trim();
 }
 
 // Parse CSV or line-separated list
@@ -60,8 +86,11 @@ function parseCardList(content: string): CardData[] {
   for (const line of lines) {
     // Handle CSV format (name, quantity) or just names
     const parts = line.split(',').map(p => p.trim());
-    const cardName = parts[0];
+    let cardName = parts[0];
     const quantity = parseInt(parts[1]) || 1;
+    
+    // Sanitize the card name
+    cardName = sanitizeCardName(cardName);
     
     if (cardName) {
       cardCounts[cardName] = (cardCounts[cardName] || 0) + quantity;

@@ -549,8 +549,20 @@ export const html = `<!DOCTYPE html>
 <body>
   <div class="container">
     <header>
-      <h1>🃏 MTG Card Comparison</h1>
-      <p class="subtitle">Upload your card lists and compare ownership across friends</p>
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <h1>🃏 MTG Card Comparison</h1>
+          <p class="subtitle">Upload your card lists and compare ownership across friends</p>
+        </div>
+        <div class="image-toggle" style="margin-right: 20px; display: flex; align-items: center; gap: 12px;">
+          <label style="color: #d4af37; font-weight: 600;">Local Mode:</label>
+          <label class="toggle-switch">
+            <input type="checkbox" id="localModeToggle" onchange="toggleLocalMode()">
+            <span class="toggle-slider"></span>
+          </label>
+          <button id="resetToBackupBtn" class="btn-secondary btn-small" onclick="resetToBackup()" style="display: none;">Reset to Backup</button>
+        </div>
+      </div>
     </header>
 
     <div class="main-grid">
@@ -558,11 +570,13 @@ export const html = `<!DOCTYPE html>
       <div class="card">
         <h2>Primary Card List</h2>
         <div class="upload-section">
-          <div class="upload-group">
-            <label for="primaryFile">Upload Primary List (CSV or Line-separated)</label>
-            <input type="file" id="primaryFile" accept=".csv,.txt">
+          <div class="upload-group" id="primaryDropZone" style="border: 2px dashed #d4af37; border-radius: 4px; padding: 20px; text-align: center; cursor: pointer; transition: all 0.3s; background: rgba(212, 175, 55, 0.05);">
+            <label for="primaryFile" style="cursor: pointer; display: block;">
+              <div style="color: #d4af37; font-weight: 600; margin-bottom: 8px;">Drag files here or click to select</div>
+              <div style="color: #999; font-size: 0.9em;">CSV or Line-separated files (supports multiple)</div>
+            </label>
+            <input type="file" id="primaryFile" accept=".csv,.txt" multiple style="display: none;">
           </div>
-          <button class="btn-primary" onclick="uploadPrimaryList()">Upload Primary List</button>
           <div id="primaryStatus" class="status-message"></div>
           <div id="primaryInfo" style="margin-top: 15px; color: #666; font-size: 0.9em;"></div>
           <button class="btn-secondary btn-small" onclick="deletePrimaryList()" style="margin-top: 10px;">Clear Primary List</button>
@@ -577,9 +591,12 @@ export const html = `<!DOCTYPE html>
             <label for="uploaderName">Your Name</label>
             <input type="text" id="uploaderName" placeholder="e.g., Alice, Bob, Charlie">
           </div>
-          <div class="upload-group">
-            <label for="ownedFile">Upload Your Card List (CSV or Line-separated)</label>
-            <input type="file" id="ownedFile" accept=".csv,.txt">
+          <div class="upload-group" id="ownedDropZone" style="border: 2px dashed #d4af37; border-radius: 4px; padding: 20px; text-align: center; cursor: pointer; transition: all 0.3s; background: rgba(212, 175, 55, 0.05);">
+            <label for="ownedFile" style="cursor: pointer; display: block;">
+              <div style="color: #d4af37; font-weight: 600; margin-bottom: 8px;">Drag files here or click to select</div>
+              <div style="color: #999; font-size: 0.9em;">CSV or Line-separated files (supports multiple)</div>
+            </label>
+            <input type="file" id="ownedFile" accept=".csv,.txt" multiple style="display: none;">
           </div>
           <button class="btn-primary" onclick="uploadOwnedList()">Upload My Cards</button>
           <div id="ownedStatus" class="status-message"></div>
@@ -662,6 +679,10 @@ export const html = `<!DOCTYPE html>
 
   <script>
     let appData = { primaryLists: [], uploadedLists: [] };
+    let localMode = false;
+    let localModeHasChanges = false;
+    let backupData = null;
+    const LOCAL_MODE_KEY = 'mtg-local-mode';
 
     // Cache management for card images
     const CACHE_KEY = 'mtg-card-cache';
@@ -732,9 +753,98 @@ export const html = `<!DOCTYPE html>
       updateComparison();
     }
 
+    function initLocalMode() {
+      localMode = localStorage.getItem(LOCAL_MODE_KEY) === 'true';
+      document.getElementById('localModeToggle').checked = localMode;
+      updateResetButtonVisibility();
+    }
+
+    function updateResetButtonVisibility() {
+      const btn = document.getElementById('resetToBackupBtn');
+      if (localMode && localModeHasChanges) {
+        btn.style.display = 'block';
+      } else {
+        btn.style.display = 'none';
+      }
+    }
+
+    function markLocalChanges() {
+      if (localMode) {
+        localModeHasChanges = true;
+        updateResetButtonVisibility();
+      }
+    }
+
+    function toggleLocalMode() {
+      const newLocalMode = document.getElementById('localModeToggle').checked;
+      
+      if (!localMode && newLocalMode) {
+        // Switching TO local mode - save backup data and enable it
+        backupData = JSON.parse(JSON.stringify(appData));
+        localMode = true;
+        localModeHasChanges = false;
+        localStorage.setItem(LOCAL_MODE_KEY, 'true');
+        updateResetButtonVisibility();
+      } else if (localMode && !newLocalMode) {
+        // Switching FROM local mode to backup mode
+        if (localModeHasChanges) {
+          // Only prompt if there are changes
+          if (confirm('This will overwrite the backup with your current changes. Are you sure?')) {
+            localMode = false;
+            localModeHasChanges = false;
+            localStorage.setItem(LOCAL_MODE_KEY, 'false');
+            updateResetButtonVisibility();
+            // Save current data to R2
+            saveDataToBackup();
+          } else {
+            // User rejected, keep local mode enabled
+            document.getElementById('localModeToggle').checked = true;
+          }
+        } else {
+          // No changes, just disable local mode
+          localMode = false;
+          localStorage.setItem(LOCAL_MODE_KEY, 'false');
+          updateResetButtonVisibility();
+        }
+      }
+    }
+
+    async function resetToBackup() {
+      if (!confirm('Reset to backup? This will discard all local changes.')) return;
+      
+      appData = JSON.parse(JSON.stringify(backupData));
+      localModeHasChanges = false;
+      updateResetButtonVisibility();
+      clearCardCache();
+      updateUI();
+    }
+
+    async function saveDataToBackup() {
+      try {
+        const response = await fetch('/api/backup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(appData)
+        });
+        if (response.ok) {
+          showStatus('primaryStatus', 'Backup saved successfully', true);
+        }
+      } catch (error) {
+        console.error('Error saving backup:', error);
+        showStatus('primaryStatus', 'Error saving backup', false);
+      }
+    }
+
     // Load data on page load with retry logic
     async function loadData(retries = 3, delay = 500) {
       try {
+        // If in local mode, don't reload from R2
+        if (localMode) {
+          console.log('Local mode enabled, skipping R2 load');
+          updateUI();
+          return;
+        }
+
         const response = await fetch('/api/data');
         if (!response.ok) {
           throw new Error('API returned ' + response.status);
@@ -771,99 +881,215 @@ export const html = `<!DOCTYPE html>
       }, 5000);
     }
 
+    function parseCardList(content) {
+      const cards = {};
+      const lines = content.split('\\n');
+      
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        
+        const match = trimmed.match(/^(\\d+)\\s+(.+)$/);
+        if (match) {
+          const count = parseInt(match[1]);
+          const name = match[2].trim();
+          cards[name] = (cards[name] || 0) + count;
+        } else {
+          const name = trimmed;
+          cards[name] = (cards[name] || 0) + 1;
+        }
+      }
+      
+      return Object.entries(cards).map(([name, count]) => ({ name, count }));
+    }
+
     async function uploadPrimaryList() {
-      const file = document.getElementById('primaryFile').files[0];
-      if (!file) {
+      const files = document.getElementById('primaryFile').files;
+      if (files.length === 0) {
         showStatus('primaryStatus', 'Please select a file', false);
         return;
       }
 
-      const formData = new FormData();
-      formData.append('file', file);
-
-      try {
-        const response = await fetch('/api/upload-primary', {
-          method: 'POST',
-          body: formData
-        });
-        const result = await response.json();
-        if (response.ok) {
-          showStatus('primaryStatus', \`Successfully uploaded \${result.count} cards\`, true);
-          document.getElementById('primaryFile').value = '';
-          await loadData();
+      let totalCards = 0;
+      let successCount = 0;
+      
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        
+        if (localMode) {
+          // Local mode: parse file directly
+          try {
+            const content = await file.text();
+            const cards = parseCardList(content);
+            appData.primaryLists.push({
+              name: file.name,
+              cards: cards,
+              uploadedAt: new Date().toISOString()
+            });
+            totalCards += cards.length;
+            successCount++;
+          } catch (error) {
+            showStatus('primaryStatus', \`Error reading \${file.name}: \${error.message}\`, false);
+          }
         } else {
-          showStatus('primaryStatus', result.error || 'Upload failed', false);
+          // Backup mode: upload to server
+          const formData = new FormData();
+          formData.append('file', file);
+
+          try {
+            const response = await fetch('/api/upload-primary', {
+              method: 'POST',
+              body: formData
+            });
+            const result = await response.json();
+            if (response.ok) {
+              totalCards += result.count;
+              successCount++;
+            } else {
+              showStatus('primaryStatus', \`Error uploading \${file.name}: \${result.error}\`, false);
+            }
+          } catch (error) {
+            showStatus('primaryStatus', \`Error uploading \${file.name}: \${error.message}\`, false);
+          }
         }
-      } catch (error) {
-        showStatus('primaryStatus', 'Error uploading file: ' + error.message, false);
+      }
+
+      if (successCount > 0) {
+        showStatus('primaryStatus', \`Successfully uploaded \${successCount} file(s) with \${totalCards} cards\`, true);
+        document.getElementById('primaryFile').value = '';
+        markLocalChanges();
+        if (localMode) {
+          updateUI();
+        } else {
+          await loadData();
+        }
       }
     }
 
     async function uploadOwnedList() {
-      const file = document.getElementById('ownedFile').files[0];
+      const files = document.getElementById('ownedFile').files;
       const uploaderName = document.getElementById('uploaderName').value.trim();
 
-      if (!file || !uploaderName) {
-        showStatus('ownedStatus', 'Please enter your name and select a file', false);
+      if (files.length === 0) {
+        showStatus('ownedStatus', 'Please select a file', false);
         return;
       }
 
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('uploaderName', uploaderName);
+      let totalCards = 0;
+      let successCount = 0;
 
-      try {
-        const response = await fetch('/api/upload-owned', {
-          method: 'POST',
-          body: formData
-        });
-        const result = await response.json();
-        if (response.ok) {
-          showStatus('ownedStatus', \`Successfully uploaded \${result.count} cards for \${uploaderName}\`, true);
-          document.getElementById('ownedFile').value = '';
-          document.getElementById('uploaderName').value = '';
-          await loadData();
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        // Extract filename without extension
+        const fileName = file.name.replace(/\.[^/.]+$/, '');
+        // If uploaderName provided, append filename; otherwise use filename only
+        const finalName = uploaderName ? \`\${uploaderName} - \${fileName}\` : fileName;
+        
+        if (localMode) {
+          // Local mode: parse file directly
+          try {
+            const content = await file.text();
+            const cards = parseCardList(content);
+            
+            // Remove existing list with same name if it exists
+            appData.uploadedLists = appData.uploadedLists.filter(list => list.uploaderName !== finalName);
+            
+            // Add new list
+            appData.uploadedLists.push({
+              uploaderName: finalName,
+              cards: cards,
+              uploadedAt: new Date().toISOString()
+            });
+            
+            totalCards += cards.length;
+            successCount++;
+          } catch (error) {
+            showStatus('ownedStatus', \`Error reading \${file.name}: \${error.message}\`, false);
+          }
         } else {
-          showStatus('ownedStatus', result.error || 'Upload failed', false);
+          // Backup mode: upload to server
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('uploaderName', finalName);
+
+          try {
+            const response = await fetch('/api/upload-owned', {
+              method: 'POST',
+              body: formData
+            });
+            const result = await response.json();
+            if (response.ok) {
+              totalCards += result.count;
+              successCount++;
+            } else {
+              showStatus('ownedStatus', \`Error uploading \${file.name}: \${result.error}\`, false);
+            }
+          } catch (error) {
+            showStatus('ownedStatus', \`Error uploading \${file.name}: \${error.message}\`, false);
+          }
         }
-      } catch (error) {
-        showStatus('ownedStatus', 'Error uploading file: ' + error.message, false);
+      }
+
+      if (successCount > 0) {
+        showStatus('ownedStatus', \`Successfully uploaded \${successCount} file(s) with \${totalCards} cards\`, true);
+        document.getElementById('ownedFile').value = '';
+        document.getElementById('uploaderName').value = '';
+        markLocalChanges();
+        if (localMode) {
+          updateUI();
+        } else {
+          await loadData();
+        }
       }
     }
 
     async function deleteList(uploaderName) {
       if (!confirm(\`Delete \${uploaderName}'s card list?\`)) return;
 
-      try {
-        const response = await fetch(\`/api/list/\${encodeURIComponent(uploaderName)}\`, {
-          method: 'DELETE'
-        });
-        if (response.ok) {
-          await loadData();
+      if (localMode) {
+        appData.uploadedLists = appData.uploadedLists.filter(list => list.uploaderName !== uploaderName);
+        markLocalChanges();
+        updateUI();
+      } else {
+        try {
+          const response = await fetch(\`/api/list/\${encodeURIComponent(uploaderName)}\`, {
+            method: 'DELETE'
+          });
+          if (response.ok) {
+            await loadData();
+          }
+        } catch (error) {
+          console.error('Error deleting list:', error);
         }
-      } catch (error) {
-        console.error('Error deleting list:', error);
       }
     }
 
     async function deletePrimaryList(primaryName) {
       if (!confirm(\`Delete '\${primaryName}'?\`)) return;
 
-      try {
-        const response = await fetch(\`/api/primary/\${encodeURIComponent(primaryName)}\`, {
-          method: 'DELETE'
-        });
-        if (response.ok) {
-          clearCardCache();
-          await loadData();
+      if (localMode) {
+        appData.primaryLists = appData.primaryLists.filter(list => list.name !== primaryName);
+        markLocalChanges();
+        clearCardCache();
+        updateUI();
+      } else {
+        try {
+          const response = await fetch(\`/api/primary/\${encodeURIComponent(primaryName)}\`, {
+            method: 'DELETE'
+          });
+          if (response.ok) {
+            clearCardCache();
+            await loadData();
+          }
+        } catch (error) {
+          console.error('Error deleting primary list:', error);
         }
-      } catch (error) {
-        console.error('Error deleting primary list:', error);
       }
     }
 
     function updateUI() {
       initImageToggle();
+      initLocalMode();
       updatePrimaryListInfo();
       updateFilterPrimaryLists();
       updateListsList();
@@ -1453,6 +1679,46 @@ export const html = `<!DOCTYPE html>
         alert('Failed to copy to clipboard. Please try again.');
       });
     }
+
+    // Set up drag-drop for primary list
+    const primaryDropZone = document.getElementById('primaryDropZone');
+    primaryDropZone.addEventListener('click', () => document.getElementById('primaryFile').click());
+    primaryDropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      primaryDropZone.style.background = 'rgba(212, 175, 55, 0.2)';
+      primaryDropZone.style.borderColor = '#ffd700';
+    });
+    primaryDropZone.addEventListener('dragleave', () => {
+      primaryDropZone.style.background = 'rgba(212, 175, 55, 0.05)';
+      primaryDropZone.style.borderColor = '#d4af37';
+    });
+    primaryDropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      primaryDropZone.style.background = 'rgba(212, 175, 55, 0.05)';
+      primaryDropZone.style.borderColor = '#d4af37';
+      document.getElementById('primaryFile').files = e.dataTransfer.files;
+      uploadPrimaryList();
+    });
+
+    // Set up drag-drop for owned list
+    const ownedDropZone = document.getElementById('ownedDropZone');
+    ownedDropZone.addEventListener('click', () => document.getElementById('ownedFile').click());
+    ownedDropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      ownedDropZone.style.background = 'rgba(212, 175, 55, 0.2)';
+      ownedDropZone.style.borderColor = '#ffd700';
+    });
+    ownedDropZone.addEventListener('dragleave', () => {
+      ownedDropZone.style.background = 'rgba(212, 175, 55, 0.05)';
+      ownedDropZone.style.borderColor = '#d4af37';
+    });
+    ownedDropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      ownedDropZone.style.background = 'rgba(212, 175, 55, 0.05)';
+      ownedDropZone.style.borderColor = '#d4af37';
+      document.getElementById('ownedFile').files = e.dataTransfer.files;
+      uploadOwnedList();
+    });
 
     // Set up hot reload for development
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {

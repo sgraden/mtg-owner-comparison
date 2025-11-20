@@ -174,6 +174,19 @@ async function handleRequest(request: Request, env: any): Promise<Response> {
     }
   }
 
+  // API: Save backup (from local mode)
+  if (pathname === '/api/backup' && method === 'POST') {
+    try {
+      const data = await request.json() as StorageData;
+      await saveStorageData(env, data);
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { 'Content-Type': 'application/json' }
+      });
+    } catch (error) {
+      return new Response(JSON.stringify({ error: String(error) }), { status: 500 });
+    }
+  }
+
   // API: Get all data
   if (pathname === '/api/data' && method === 'GET') {
     const data = await getStorageData(env);

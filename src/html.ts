@@ -584,7 +584,7 @@ export const html = `<!DOCTYPE html>
           <button class="btn-primary" onclick="uploadOwnedList()">Upload My Cards</button>
           <div id="ownedStatus" class="status-message"></div>
           <div style="margin-top: 20px;">
-            <h3 style="color: #333; margin-bottom: 12px; font-size: 1.1em;">Uploaded Lists</h3>
+            <h3 style="color: #d4af37; margin-bottom: 12px; font-size: 1.1em;">Uploaded Lists</h3>
             <div id="listsList" class="lists-container"></div>
           </div>
         </div>
@@ -638,6 +638,12 @@ export const html = `<!DOCTYPE html>
             </div>
           </div>
           <div>
+            <label style="display: block; margin-bottom: 10px;">Filter by Primary List:</label>
+            <div id="primaryListFilters" class="filter-labels">
+              <div class="filter-label active" data-filter-type="primaryList" data-filter-value="" onclick="toggleFilter(this)">All Lists</div>
+            </div>
+          </div>
+          <div>
             <label style="display: block; margin-bottom: 10px;">Filter by Owner:</label>
             <div id="ownerFilters" class="filter-labels">
               <div class="filter-label active" data-filter-type="owner" data-filter-value="" onclick="toggleFilter(this)">All Owners</div>
@@ -655,7 +661,7 @@ export const html = `<!DOCTYPE html>
   </div>
 
   <script>
-    let appData = { primaryList: [], uploadedLists: [] };
+    let appData = { primaryLists: [], uploadedLists: [] };
 
     // Cache management for card images
     const CACHE_KEY = 'mtg-card-cache';
@@ -840,11 +846,11 @@ export const html = `<!DOCTYPE html>
       }
     }
 
-    async function deletePrimaryList() {
-      if (!confirm('Delete the primary card list?')) return;
+    async function deletePrimaryList(primaryName) {
+      if (!confirm(\`Delete '\${primaryName}'?\`)) return;
 
       try {
-        const response = await fetch('/api/primary', {
+        const response = await fetch(\`/api/primary/\${encodeURIComponent(primaryName)}\`, {
           method: 'DELETE'
         });
         if (response.ok) {
@@ -858,9 +864,29 @@ export const html = `<!DOCTYPE html>
 
     function updateUI() {
       initImageToggle();
+      updatePrimaryListInfo();
+      updateFilterPrimaryLists();
       updateListsList();
       updateFilterOwners();
       updateComparison();
+    }
+
+    function updatePrimaryListInfo() {
+      const container = document.getElementById('primaryInfo');
+      if (appData.primaryLists.length === 0) {
+        container.innerHTML = '';
+        return;
+      }
+
+      container.innerHTML = appData.primaryLists.map(list => \`
+        <div class="list-item">
+          <div>
+            <div class="list-item-name">\${list.name}</div>
+            <div class="list-item-count">\${list.cards.length} cards</div>
+          </div>
+          <button class="btn-secondary btn-small" onclick="deletePrimaryList('\${list.name}')">Remove</button>
+        </div>
+      \`).join('');
     }
 
     function updateListsList() {
@@ -879,6 +905,21 @@ export const html = `<!DOCTYPE html>
           <button class="btn-secondary btn-small" onclick="deleteList('\${list.uploaderName}')">Remove</button>
         </div>
       \`).join('');
+    }
+
+    function updateFilterPrimaryLists() {
+      const primaryListFilters = document.getElementById('primaryListFilters');
+      const primaryListNames = appData.primaryLists.map(list => list.name);
+      
+      // Keep "All Lists" button
+      let html = '<div class="filter-label active" data-filter-type="primaryList" data-filter-value="" onclick="toggleFilter(this)">All Lists</div>';
+      
+      // Add primary list buttons
+      html += primaryListNames.map(name => 
+        \`<div class="filter-label" data-filter-type="primaryList" data-filter-value="\${name}" onclick="toggleFilter(this)">\${name}</div>\`
+      ).join('');
+      
+      primaryListFilters.innerHTML = html;
     }
 
     function updateFilterOwners() {
@@ -918,6 +959,24 @@ export const html = `<!DOCTYPE html>
             allCardsBtn.classList.add('active');
           }
         }
+      } else if (filterType === 'primaryList') {
+        // Primary list filters are multi-select
+        if (filterValue === '') {
+          // "All Lists" deselects all others
+          document.querySelectorAll('[data-filter-type="primaryList"]').forEach(el => el.classList.remove('active'));
+          element.classList.add('active');
+        } else {
+          // Clicking a list deselects "All Lists"
+          const allListsBtn = document.querySelector('[data-filter-type="primaryList"][data-filter-value=""]');
+          allListsBtn.classList.remove('active');
+          element.classList.toggle('active');
+          
+          // If no lists selected, select "All Lists"
+          const activeLists = document.querySelectorAll('[data-filter-type="primaryList"].active:not([data-filter-value=""])');
+          if (activeLists.length === 0) {
+            allListsBtn.classList.add('active');
+          }
+        }
       } else if (filterType === 'owner') {
         // Owner filters are multi-select
         if (filterValue === '') {
@@ -946,15 +1005,19 @@ export const html = `<!DOCTYPE html>
         .map(el => el.getAttribute('data-filter-value'))
         .filter(val => val !== 'all');
       
+      const activePrimaryLists = Array.from(document.querySelectorAll('[data-filter-type="primaryList"].active'))
+        .map(el => el.getAttribute('data-filter-value'))
+        .filter(val => val !== '');
+      
       const activeOwners = Array.from(document.querySelectorAll('[data-filter-type="owner"].active'))
         .map(el => el.getAttribute('data-filter-value'))
         .filter(val => val !== '');
       
-      return { statuses: activeStatuses.length === 0 ? ['all'] : activeStatuses, owners: activeOwners };
+      return { statuses: activeStatuses.length === 0 ? ['all'] : activeStatuses, primaryLists: activePrimaryLists, owners: activeOwners };
     }
 
     async function updateComparison() {
-      if (appData.primaryList.length === 0) {
+      if (appData.primaryLists.length === 0) {
         document.getElementById('cardsContainer').innerHTML = 
           '<div class="empty-state"><div>Upload a primary card list to get started</div></div>';
         updateStats([], 0, 0, 0);
@@ -967,20 +1030,28 @@ export const html = `<!DOCTYPE html>
 
       const filters = getActiveFilters();
       const filterStatuses = filters.statuses;
+      const filterPrimaryLists = filters.primaryLists;
       const filterOwners = filters.owners;
 
       const cardMap = new Map();
 
-      // Build card ownership map
-      for (const card of appData.primaryList) {
-        if (!cardMap.has(card.name)) {
-          cardMap.set(card.name, {
-            name: card.name,
-            needed: card.count,
-            owners: {}
-          });
-        } else {
-          cardMap.get(card.name).needed += card.count;
+      // Build card ownership map from filtered primary lists
+      for (const primaryList of appData.primaryLists) {
+        // Skip if filtering by primary list and this list is not selected
+        if (filterPrimaryLists.length > 0 && !filterPrimaryLists.includes(primaryList.name)) {
+          continue;
+        }
+        
+        for (const card of primaryList.cards) {
+          if (!cardMap.has(card.name)) {
+            cardMap.set(card.name, {
+              name: card.name,
+              needed: card.count,
+              owners: {}
+            });
+          } else {
+            cardMap.get(card.name).needed += card.count;
+          }
         }
       }
 
@@ -1207,7 +1278,8 @@ export const html = `<!DOCTYPE html>
       }
 
       // Update stats immediately
-      document.getElementById('totalCards').textContent = appData.primaryList.length;
+      const totalPrimaryCards = appData.primaryLists.reduce((sum, list) => sum + list.cards.length, 0);
+      document.getElementById('totalCards').textContent = totalPrimaryCards;
       document.getElementById('fullyOwned').textContent = fullyOwned;
       document.getElementById('partiallyOwned').textContent = partiallyOwned;
       document.getElementById('notOwned').textContent = notOwned;
@@ -1220,15 +1292,18 @@ export const html = `<!DOCTYPE html>
 
       const cardMap = new Map();
 
-      for (const card of appData.primaryList) {
-        if (!cardMap.has(card.name)) {
-          cardMap.set(card.name, {
-            name: card.name,
-            needed: card.count,
-            owners: {}
-          });
-        } else {
-          cardMap.get(card.name).needed += card.count;
+      // Build from all primary lists
+      for (const primaryList of appData.primaryLists) {
+        for (const card of primaryList.cards) {
+          if (!cardMap.has(card.name)) {
+            cardMap.set(card.name, {
+              name: card.name,
+              needed: card.count,
+              owners: {}
+            });
+          } else {
+            cardMap.get(card.name).needed += card.count;
+          }
         }
       }
 
@@ -1295,15 +1370,18 @@ export const html = `<!DOCTYPE html>
       // Build card map
       const cardMap = new Map();
 
-      for (const card of appData.primaryList) {
-        if (!cardMap.has(card.name)) {
-          cardMap.set(card.name, {
-            name: card.name,
-            needed: card.count,
-            owners: {}
-          });
-        } else {
-          cardMap.get(card.name).needed += card.count;
+      // Build from all primary lists
+      for (const primaryList of appData.primaryLists) {
+        for (const card of primaryList.cards) {
+          if (!cardMap.has(card.name)) {
+            cardMap.set(card.name, {
+              name: card.name,
+              needed: card.count,
+              owners: {}
+            });
+          } else {
+            cardMap.get(card.name).needed += card.count;
+          }
         }
       }
 

@@ -11,13 +11,19 @@ interface UploadedList {
   uploadedAt: string;
 }
 
+interface PrimaryList {
+  name: string;
+  cards: CardData[];
+  uploadedAt: string;
+}
+
 interface StorageData {
-  primaryList: CardData[];
+  primaryLists: PrimaryList[];
   uploadedLists: UploadedList[];
 }
 
 // In-memory storage for local development
-let memoryStorage: StorageData = { primaryList: [], uploadedLists: [] };
+let memoryStorage: StorageData = { primaryLists: [], uploadedLists: [] };
 
 // Helper to get storage data
 async function getStorageData(env: any): Promise<StorageData> {
@@ -29,12 +35,12 @@ async function getStorageData(env: any): Promise<StorageData> {
         // R2 returns a GetResult object, need to call .text() to get the string
         const jsonString = await result.text();
         const parsed = JSON.parse(jsonString);
-        console.log('Data loaded from R2:', { primaryCards: parsed.primaryList.length, uploadedLists: parsed.uploadedLists.length });
+        console.log('Data loaded from R2:', { primaryLists: parsed.primaryLists.length, uploadedLists: parsed.uploadedLists.length });
         return parsed;
       } else {
         // No data in R2 yet, return empty
         console.log('No data in R2 yet, returning empty');
-        return { primaryList: [], uploadedLists: [] };
+        return { primaryLists: [], uploadedLists: [] };
       }
     } catch (error) {
       console.error('R2 storage error:', error);
@@ -117,13 +123,18 @@ async function handleRequest(request: Request, env: any): Promise<Response> {
       }
       
       const content = await file.text();
-      const primaryList = parseCardList(content);
+      const cards = parseCardList(content);
       
       const data = await getStorageData(env);
-      data.primaryList = primaryList;
+      // Append new primary list instead of replacing
+      data.primaryLists.push({
+        name: file.name,
+        cards: cards,
+        uploadedAt: new Date().toISOString()
+      });
       await saveStorageData(env, data);
       
-      return new Response(JSON.stringify({ success: true, count: primaryList.length }));
+      return new Response(JSON.stringify({ success: true, count: cards.length }));
     } catch (error) {
       return new Response(JSON.stringify({ error: String(error) }), { status: 500 });
     }
@@ -191,11 +202,20 @@ async function handleRequest(request: Request, env: any): Promise<Response> {
     }
   }
 
-  // API: Delete primary list
-  if (pathname === '/api/primary' && method === 'DELETE') {
+  // API: Delete primary list(s)
+  if (pathname.startsWith('/api/primary') && method === 'DELETE') {
     try {
       const data = await getStorageData(env);
-      data.primaryList = [];
+      const primaryName = decodeURIComponent(pathname.replace('/api/primary/', ''));
+      
+      if (primaryName === '') {
+        // Delete all primary lists
+        data.primaryLists = [];
+      } else {
+        // Delete specific primary list by name
+        data.primaryLists = data.primaryLists.filter(list => list.name !== primaryName);
+      }
+      
       await saveStorageData(env, data);
       
       return new Response(JSON.stringify({ success: true }));

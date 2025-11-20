@@ -12,8 +12,9 @@ export const html = `<!DOCTYPE html>
     }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      font-family: 'Beleren Bold', 'Segoe UI', Roboto, sans-serif;
+      background: #0a0e27;
+      color: #e0e6fc;
       min-height: 100vh;
       padding: 20px;
     }
@@ -24,21 +25,22 @@ export const html = `<!DOCTYPE html>
     }
 
     header {
-      background: white;
-      border-radius: 12px;
+      background: linear-gradient(135deg, #1a1f3a 0%, #2d1b4e 100%);
+      border: 3px solid #d4af37;
       padding: 30px;
       margin-bottom: 30px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      box-shadow: 0 0 30px rgba(212, 175, 55, 0.3), inset 0 0 20px rgba(212, 175, 55, 0.1);
     }
 
     h1 {
-      color: #333;
+      color: #d4af37;
       margin-bottom: 10px;
       font-size: 2.5em;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
     }
 
     .subtitle {
-      color: #666;
+      color: #a8b8e6;
       font-size: 1.1em;
     }
 
@@ -50,18 +52,19 @@ export const html = `<!DOCTYPE html>
     }
 
     .card {
-      background: white;
-      border-radius: 12px;
+      background: linear-gradient(135deg, #1a1f3a 0%, #2d1b4e 100%);
+      border: 2px solid #d4af37;
       padding: 25px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      box-shadow: 0 0 20px rgba(212, 175, 55, 0.2), inset 0 0 10px rgba(212, 175, 55, 0.05);
     }
 
     .card h2 {
-      color: #333;
+      color: #d4af37;
       margin-bottom: 20px;
       font-size: 1.5em;
-      border-bottom: 3px solid #667eea;
+      border-bottom: 3px solid #d4af37;
       padding-bottom: 10px;
+      text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
     }
 
     .upload-section {
@@ -77,7 +80,7 @@ export const html = `<!DOCTYPE html>
     }
 
     label {
-      color: #333;
+      color: #d4af37;
       font-weight: 600;
       font-size: 0.95em;
     }
@@ -85,55 +88,64 @@ export const html = `<!DOCTYPE html>
     input[type="text"],
     input[type="file"] {
       padding: 12px;
-      border: 2px solid #e0e0e0;
-      border-radius: 8px;
+      border: 2px solid #d4af37;
+      background: #0f1428;
+      color: #e0e6fc;
+      border-radius: 0;
       font-size: 1em;
-      transition: border-color 0.3s;
+      transition: all 0.3s;
     }
 
     input[type="text"]:focus,
     input[type="file"]:focus {
       outline: none;
-      border-color: #667eea;
+      border-color: #ffd700;
+      box-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
     }
 
     button {
       padding: 12px 20px;
-      border: none;
-      border-radius: 8px;
+      border: 2px solid #d4af37;
+      border-radius: 0;
       font-size: 1em;
       font-weight: 600;
       cursor: pointer;
       transition: all 0.3s;
+      text-transform: uppercase;
+      letter-spacing: 1px;
     }
 
     .btn-primary {
-      background: #667eea;
-      color: white;
+      background: #d4af37;
+      color: #0a0e27;
     }
 
     .btn-primary:hover {
-      background: #5568d3;
+      background: #ffd700;
       transform: translateY(-2px);
-      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+      box-shadow: 0 0 20px rgba(212, 175, 55, 0.8);
     }
 
     .btn-secondary {
-      background: #f0f0f0;
-      color: #333;
+      background: #1a1f3a;
+      color: #d4af37;
+      border-color: #d4af37;
     }
 
     .btn-secondary:hover {
-      background: #e0e0e0;
+      background: #2d1b4e;
+      box-shadow: 0 0 15px rgba(212, 175, 55, 0.5);
     }
 
     .btn-danger {
-      background: #ff6b6b;
-      color: white;
+      background: #8b0000;
+      color: #ffd700;
+      border-color: #d4af37;
     }
 
     .btn-danger:hover {
-      background: #ee5a52;
+      background: #a00000;
+      box-shadow: 0 0 15px rgba(212, 175, 55, 0.5);
     }
 
     .btn-small {
@@ -169,38 +181,40 @@ export const html = `<!DOCTYPE html>
     }
 
     .list-item {
-      background: #f8f9fa;
+      background: #0f1428;
       padding: 12px;
-      border-radius: 8px;
+      border-radius: 0;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      border-left: 4px solid #667eea;
+      border-left: 4px solid #d4af37;
+      border: 2px solid #d4af37;
     }
 
     .list-item-name {
       font-weight: 600;
-      color: #333;
+      color: #d4af37;
     }
 
     .list-item-count {
-      color: #666;
+      color: #a8b8e6;
       font-size: 0.9em;
     }
 
     .comparison-section {
-      background: white;
-      border-radius: 12px;
+      background: linear-gradient(135deg, #1a1f3a 0%, #2d1b4e 100%);
+      border: 2px solid #d4af37;
       padding: 25px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      box-shadow: 0 0 20px rgba(212, 175, 55, 0.2), inset 0 0 10px rgba(212, 175, 55, 0.05);
     }
 
     .comparison-section h2 {
-      color: #333;
+      color: #d4af37;
       margin-bottom: 20px;
       font-size: 1.5em;
-      border-bottom: 3px solid #667eea;
+      border-bottom: 3px solid #d4af37;
       padding-bottom: 10px;
+      text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
     }
 
     .controls {
@@ -220,14 +234,47 @@ export const html = `<!DOCTYPE html>
     .filter-group label {
       margin: 0;
       font-weight: 600;
-      color: #333;
+      color: #d4af37;
     }
 
     .filter-group select {
       padding: 8px 12px;
-      border: 2px solid #e0e0e0;
-      border-radius: 8px;
+      border: 2px solid #d4af37;
+      background: #0f1428;
+      color: #e0e6fc;
+      border-radius: 0;
       font-size: 0.95em;
+    }
+
+    .filter-labels {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .filter-label {
+      padding: 8px 16px;
+      border: 2px solid #d4af37;
+      background: #0f1428;
+      color: #d4af37;
+      cursor: pointer;
+      transition: all 0.3s;
+      border-radius: 0;
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 0.85em;
+    }
+
+    .filter-label:hover {
+      background: #1a1f3a;
+      box-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
+    }
+
+    .filter-label.active {
+      background: #d4af37;
+      color: #0a0e27;
+      box-shadow: 0 0 15px rgba(212, 175, 55, 0.8);
     }
 
     .cards-grid {
@@ -238,27 +285,27 @@ export const html = `<!DOCTYPE html>
     }
 
     .card-item {
-      background: #f8f9fa;
-      border-radius: 8px;
+      background: #0f1428;
+      border-radius: 0;
       overflow: hidden;
-      border: 2px solid #e0e0e0;
+      border: 2px solid #d4af37;
       transition: all 0.3s;
     }
 
     .card-item:hover {
       transform: translateY(-5px);
-      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-      border-color: #667eea;
+      box-shadow: 0 0 20px rgba(212, 175, 55, 0.6);
+      border-color: #ffd700;
     }
 
     .card-image {
       width: 100%;
       height: 280px;
-      background: #e0e0e0;
+      background: #1a1f3a;
       display: flex;
       align-items: center;
       justify-content: center;
-      color: #999;
+      color: #666;
       font-size: 0.9em;
       text-align: center;
       padding: 10px;
@@ -272,54 +319,63 @@ export const html = `<!DOCTYPE html>
 
     .card-info {
       padding: 12px;
+      border-top: 2px solid #d4af37;
     }
 
     .card-name {
       font-weight: 600;
-      color: #333;
+      color: #d4af37;
       margin-bottom: 8px;
       font-size: 0.95em;
     }
 
     .card-needed {
-      color: #666;
+      color: #a8b8e6;
       font-size: 0.85em;
       margin-bottom: 8px;
     }
 
     .card-owners {
       font-size: 0.85em;
-      color: #667eea;
+      color: #a8b8e6;
       margin-bottom: 8px;
     }
 
     .owner-badge {
       display: inline-block;
-      background: #667eea;
-      color: white;
-      padding: 2px 8px;
-      border-radius: 4px;
+      background: #d4af37;
+      color: #0a0e27;
+      padding: 4px 10px;
+      border-radius: 0;
       margin-right: 4px;
       margin-bottom: 4px;
-      font-size: 0.8em;
+      font-size: 0.75em;
+      font-weight: 600;
+      border: 1px solid #d4af37;
     }
 
     .owner-badge.owned {
-      background: #51cf66;
+      background: #2d5016;
+      color: #7cfc00;
+      border-color: #7cfc00;
     }
 
     .owner-badge.partial {
-      background: #ffa94d;
+      background: #4a3200;
+      color: #ffa500;
+      border-color: #ffa500;
     }
 
     .owner-badge.missing {
-      background: #ff6b6b;
+      background: #4a0000;
+      color: #ff6b6b;
+      border-color: #ff6b6b;
     }
 
     .empty-state {
       text-align: center;
       padding: 40px;
-      color: #999;
+      color: #666;
     }
 
     .empty-state svg {
@@ -351,23 +407,26 @@ export const html = `<!DOCTYPE html>
     }
 
     .stat-box {
-      background: #f8f9fa;
+      background: #0f1428;
       padding: 15px;
-      border-radius: 8px;
+      border-radius: 0;
       text-align: center;
-      border-left: 4px solid #667eea;
+      border: 2px solid #d4af37;
     }
 
     .stat-value {
-      font-size: 1.8em;
+      font-size: 2.2em;
       font-weight: 700;
-      color: #667eea;
+      color: #ffd700;
+      text-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
     }
 
     .stat-label {
-      color: #666;
+      color: #d4af37;
       font-size: 0.9em;
       margin-top: 5px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
     }
   </style>
 </head>
@@ -440,22 +499,24 @@ export const html = `<!DOCTYPE html>
       </div>
 
       <div class="controls">
-        <div class="filter-group">
-          <label for="filterStatus">Filter by Status:</label>
-          <select id="filterStatus" onchange="updateComparison()">
-            <option value="all">All Cards</option>
-            <option value="owned">Fully Owned</option>
-            <option value="partial">Partially Owned</option>
-            <option value="missing">Not Owned</option>
-          </select>
+        <div style="width: 100%; display: flex; flex-direction: column; gap: 15px;">
+          <div>
+            <label style="display: block; margin-bottom: 10px;">Filter by Status:</label>
+            <div class="filter-labels">
+              <div class="filter-label active" data-filter-type="status" data-filter-value="all" onclick="toggleFilter(this)">All Cards</div>
+              <div class="filter-label" data-filter-type="status" data-filter-value="owned" onclick="toggleFilter(this)">Fully Owned</div>
+              <div class="filter-label" data-filter-type="status" data-filter-value="partial" onclick="toggleFilter(this)">Partially Owned</div>
+              <div class="filter-label" data-filter-type="status" data-filter-value="missing" onclick="toggleFilter(this)">Not Owned</div>
+            </div>
+          </div>
+          <div>
+            <label style="display: block; margin-bottom: 10px;">Filter by Owner:</label>
+            <div id="ownerFilters" class="filter-labels">
+              <div class="filter-label active" data-filter-type="owner" data-filter-value="" onclick="toggleFilter(this)">All Owners</div>
+            </div>
+          </div>
+          <button class="btn-primary" onclick="exportToCSV()">Export Filtered List</button>
         </div>
-        <div class="filter-group">
-          <label for="filterOwner">Filter by Owner:</label>
-          <select id="filterOwner" onchange="updateComparison()">
-            <option value="">All Owners</option>
-          </select>
-        </div>
-        <button class="btn-primary" onclick="exportToCSV()">Export Filtered List</button>
       </div>
 
       <div id="cardsContainer" class="cards-grid"></div>
@@ -653,15 +714,58 @@ export const html = `<!DOCTYPE html>
     }
 
     function updateFilterOwners() {
-      const select = document.getElementById('filterOwner');
-      const currentValue = select.value;
+      const ownerFilters = document.getElementById('ownerFilters');
+      const owners = appData.uploadedLists.map(list => list.uploaderName);
       
-      select.innerHTML = '<option value="">All Owners</option>' + 
-        appData.uploadedLists.map(list => 
-          \`<option value="\${list.uploaderName}">\${list.uploaderName}</option>\`
-        ).join('');
+      // Keep "All Owners" button
+      let html = '<div class="filter-label active" data-filter-type="owner" data-filter-value="" onclick="toggleFilter(this)">All Owners</div>';
       
-      select.value = currentValue;
+      // Add owner buttons
+      html += owners.map(owner => 
+        \`<div class="filter-label" data-filter-type="owner" data-filter-value="\${owner}" onclick="toggleFilter(this)">\${owner}</div>\`
+      ).join('');
+      
+      ownerFilters.innerHTML = html;
+    }
+
+    function toggleFilter(element) {
+      const filterType = element.getAttribute('data-filter-type');
+      const filterValue = element.getAttribute('data-filter-value');
+      
+      if (filterType === 'status') {
+        // Status filters are exclusive (only one can be active)
+        document.querySelectorAll('[data-filter-type="status"]').forEach(el => el.classList.remove('active'));
+        element.classList.add('active');
+      } else if (filterType === 'owner') {
+        // Owner filters are multi-select
+        if (filterValue === '') {
+          // "All Owners" deselects all others
+          document.querySelectorAll('[data-filter-type="owner"]').forEach(el => el.classList.remove('active'));
+          element.classList.add('active');
+        } else {
+          // Clicking an owner deselects "All Owners"
+          const allOwnersBtn = document.querySelector('[data-filter-type="owner"][data-filter-value=""]');
+          allOwnersBtn.classList.remove('active');
+          element.classList.toggle('active');
+          
+          // If no owners selected, select "All Owners"
+          const activeOwners = document.querySelectorAll('[data-filter-type="owner"].active:not([data-filter-value=""])');
+          if (activeOwners.length === 0) {
+            allOwnersBtn.classList.add('active');
+          }
+        }
+      }
+      
+      updateComparison();
+    }
+
+    function getActiveFilters() {
+      const activeStatus = document.querySelector('[data-filter-type="status"].active')?.getAttribute('data-filter-value') || 'all';
+      const activeOwners = Array.from(document.querySelectorAll('[data-filter-type="owner"].active'))
+        .map(el => el.getAttribute('data-filter-value'))
+        .filter(val => val !== '');
+      
+      return { status: activeStatus, owners: activeOwners };
     }
 
     async function updateComparison() {
@@ -676,8 +780,9 @@ export const html = `<!DOCTYPE html>
       document.getElementById('cardsContainer').innerHTML = 
         '<div class="empty-state"><div>Loading card images (rate-limited for Scryfall API)...</div></div>';
 
-      const filterStatus = document.getElementById('filterStatus').value;
-      const filterOwner = document.getElementById('filterOwner').value;
+      const filters = getActiveFilters();
+      const filterStatus = filters.status;
+      const filterOwners = filters.owners;
 
       const cardMap = new Map();
 
@@ -707,6 +812,17 @@ export const html = `<!DOCTYPE html>
         }
       }
 
+      // Calculate stats IMMEDIATELY (before filtering)
+      const allCards = Array.from(cardMap.values());
+      let fullyOwned = 0, partiallyOwned = 0, notOwned = 0;
+      for (const card of allCards) {
+        const totalOwned = Object.values(card.owners).reduce((a, b) => a + b, 0);
+        if (totalOwned >= card.needed) fullyOwned++;
+        else if (totalOwned > 0) partiallyOwned++;
+        else notOwned++;
+      }
+      updateStats(allCards, filterStatus, filterOwners, appData.uploadedLists.length);
+
       // Filter cards
       let cards = Array.from(cardMap.values());
       
@@ -719,7 +835,12 @@ export const html = `<!DOCTYPE html>
         else status = 'missing';
 
         if (filterStatus !== 'all' && filterStatus !== status) return false;
-        if (filterOwner && !card.owners[filterOwner]) return false;
+        
+        // Multi-select owner filter
+        if (filterOwners.length > 0) {
+          const hasAnyOwner = filterOwners.some(owner => card.owners[owner]);
+          if (!hasAnyOwner) return false;
+        }
 
         return true;
       });
@@ -769,7 +890,6 @@ export const html = `<!DOCTYPE html>
       
       // Save updated cache
       saveCardCache(cache);
-      updateStats(cards, filterStatus, filterOwner, appData.uploadedLists.length);
     }
 
     function updateCardDisplay(card) {
@@ -825,18 +945,20 @@ export const html = `<!DOCTYPE html>
       }).join('');
     }
 
-    function updateStats(cards, filterStatus, filterOwner, totalOwners) {
+    function updateStats(allCards, filterStatus, filterOwners, totalOwners) {
+      // Calculate stats for ALL cards (not filtered)
       let fullyOwned = 0;
       let partiallyOwned = 0;
       let notOwned = 0;
 
-      for (const card of cards) {
+      for (const card of allCards) {
         const totalOwned = Object.values(card.owners).reduce((a, b) => a + b, 0);
         if (totalOwned >= card.needed) fullyOwned++;
         else if (totalOwned > 0) partiallyOwned++;
         else notOwned++;
       }
 
+      // Update stats immediately
       document.getElementById('totalCards').textContent = appData.primaryList.length;
       document.getElementById('fullyOwned').textContent = fullyOwned;
       document.getElementById('partiallyOwned').textContent = partiallyOwned;

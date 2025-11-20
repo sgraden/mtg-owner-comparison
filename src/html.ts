@@ -428,6 +428,122 @@ export const html = `<!DOCTYPE html>
       text-transform: uppercase;
       letter-spacing: 1px;
     }
+
+    .stat-box {
+      cursor: pointer;
+    }
+
+    .stat-box:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 25px rgba(212, 175, 55, 0.6);
+    }
+
+    .image-toggle {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 15px;
+      padding: 10px;
+      background: #0f1428;
+      border: 2px solid #d4af37;
+    }
+
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 50px;
+      height: 24px;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #4a4a4a;
+      transition: 0.4s;
+      border: 2px solid #d4af37;
+    }
+
+    .toggle-slider:before {
+      position: absolute;
+      content: "";
+      height: 16px;
+      width: 16px;
+      left: 2px;
+      bottom: 2px;
+      background-color: #d4af37;
+      transition: 0.4s;
+    }
+
+    input:checked + .toggle-slider {
+      background-color: #2d5016;
+    }
+
+    input:checked + .toggle-slider:before {
+      transform: translateX(26px);
+    }
+
+    .cards-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #0f1428;
+      border: 2px solid #d4af37;
+    }
+
+    .cards-table thead {
+      background: #1a1f3a;
+      border-bottom: 2px solid #d4af37;
+    }
+
+    .cards-table th {
+      padding: 12px;
+      text-align: left;
+      color: #d4af37;
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 0.85em;
+      border-right: 1px solid #d4af37;
+    }
+
+    .cards-table th:last-child {
+      border-right: none;
+    }
+
+    .cards-table td {
+      padding: 12px;
+      color: #e0e6fc;
+      border-bottom: 1px solid #333;
+      border-right: 1px solid #333;
+    }
+
+    .cards-table td:last-child {
+      border-right: none;
+    }
+
+    .cards-table tbody tr:hover {
+      background: #1a1f3a;
+    }
+
+    .cards-table .card-name {
+      color: #d4af37;
+      font-weight: 600;
+    }
+
+    .cards-table .owner-badge {
+      display: inline-block;
+      margin-right: 4px;
+      margin-bottom: 2px;
+    }
+
   </style>
 </head>
 <body>
@@ -480,22 +596,34 @@ export const html = `<!DOCTYPE html>
       <h2>Card Comparison</h2>
 
       <div class="stats">
-        <div class="stat-box">
+        <div class="stat-box" onclick="filterByStat('all')">
           <div class="stat-value" id="totalCards">0</div>
           <div class="stat-label">Total Cards Needed</div>
         </div>
-        <div class="stat-box">
+        <div class="stat-box" onclick="filterByStat('owned')">
           <div class="stat-value" id="fullyOwned">0</div>
           <div class="stat-label">Fully Owned</div>
         </div>
-        <div class="stat-box">
+        <div class="stat-box" onclick="filterByStat('partial')">
           <div class="stat-value" id="partiallyOwned">0</div>
           <div class="stat-label">Partially Owned</div>
         </div>
-        <div class="stat-box">
+        <div class="stat-box" onclick="filterByStat('missing')">
           <div class="stat-value" id="notOwned">0</div>
           <div class="stat-label">Not Owned</div>
         </div>
+        <div class="stat-box" onclick="filterByStat('buy')">
+          <div class="stat-value" id="cardsToBuy">0</div>
+          <div class="stat-label">Cards to Buy</div>
+        </div>
+      </div>
+
+      <div class="image-toggle">
+        <label style="color: #d4af37; font-weight: 600;">Show Card Images:</label>
+        <label class="toggle-switch">
+          <input type="checkbox" id="imageToggle" onchange="toggleImages()">
+          <span class="toggle-slider"></span>
+        </label>
       </div>
 
       <div class="controls">
@@ -515,7 +643,10 @@ export const html = `<!DOCTYPE html>
               <div class="filter-label active" data-filter-type="owner" data-filter-value="" onclick="toggleFilter(this)">All Owners</div>
             </div>
           </div>
-          <button class="btn-primary" onclick="exportToCSV()">Export Filtered List</button>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button class="btn-primary" onclick="exportToCSV()">Export to CSV</button>
+            <button class="btn-primary" onclick="exportToCardKingdom()">Export to Card Kingdom</button>
+          </div>
         </div>
       </div>
 
@@ -557,6 +688,42 @@ export const html = `<!DOCTYPE html>
       } catch (error) {
         console.error('Error clearing cache:', error);
       }
+    }
+
+    // Image toggle management
+    const IMAGES_ENABLED_KEY = 'mtg-images-enabled';
+    let imagesEnabled = false;
+
+    function initImageToggle() {
+      imagesEnabled = localStorage.getItem(IMAGES_ENABLED_KEY) === 'true';
+      document.getElementById('imageToggle').checked = imagesEnabled;
+    }
+
+    function toggleImages() {
+      imagesEnabled = document.getElementById('imageToggle').checked;
+      localStorage.setItem(IMAGES_ENABLED_KEY, imagesEnabled);
+      updateComparison();
+    }
+
+    function filterByStat(statType) {
+      // Clear all status filters first
+      document.querySelectorAll('[data-filter-type="status"]').forEach(el => el.classList.remove('active'));
+      
+      if (statType === 'all') {
+        document.querySelector('[data-filter-type="status"][data-filter-value="all"]').classList.add('active');
+      } else if (statType === 'owned') {
+        document.querySelector('[data-filter-type="status"][data-filter-value="owned"]').classList.add('active');
+      } else if (statType === 'partial') {
+        document.querySelector('[data-filter-type="status"][data-filter-value="partial"]').classList.add('active');
+      } else if (statType === 'missing') {
+        document.querySelector('[data-filter-type="status"][data-filter-value="missing"]').classList.add('active');
+      } else if (statType === 'buy') {
+        // "Cards to Buy" = Partially Owned + Not Owned
+        document.querySelector('[data-filter-type="status"][data-filter-value="partial"]').classList.add('active');
+        document.querySelector('[data-filter-type="status"][data-filter-value="missing"]').classList.add('active');
+      }
+      
+      updateComparison();
     }
 
     // Load data on page load with retry logic
@@ -690,6 +857,7 @@ export const html = `<!DOCTYPE html>
     }
 
     function updateUI() {
+      initImageToggle();
       updateListsList();
       updateFilterOwners();
       updateComparison();
@@ -733,9 +901,23 @@ export const html = `<!DOCTYPE html>
       const filterValue = element.getAttribute('data-filter-value');
       
       if (filterType === 'status') {
-        // Status filters are exclusive (only one can be active)
-        document.querySelectorAll('[data-filter-type="status"]').forEach(el => el.classList.remove('active'));
-        element.classList.add('active');
+        // Status filters are multi-select
+        if (filterValue === 'all') {
+          // "All Cards" deselects all others
+          document.querySelectorAll('[data-filter-type="status"]').forEach(el => el.classList.remove('active'));
+          element.classList.add('active');
+        } else {
+          // Clicking a status deselects "All Cards"
+          const allCardsBtn = document.querySelector('[data-filter-type="status"][data-filter-value="all"]');
+          allCardsBtn.classList.remove('active');
+          element.classList.toggle('active');
+          
+          // If no statuses selected, select "All Cards"
+          const activeStatuses = document.querySelectorAll('[data-filter-type="status"].active:not([data-filter-value="all"])');
+          if (activeStatuses.length === 0) {
+            allCardsBtn.classList.add('active');
+          }
+        }
       } else if (filterType === 'owner') {
         // Owner filters are multi-select
         if (filterValue === '') {
@@ -760,12 +942,15 @@ export const html = `<!DOCTYPE html>
     }
 
     function getActiveFilters() {
-      const activeStatus = document.querySelector('[data-filter-type="status"].active')?.getAttribute('data-filter-value') || 'all';
+      const activeStatuses = Array.from(document.querySelectorAll('[data-filter-type="status"].active'))
+        .map(el => el.getAttribute('data-filter-value'))
+        .filter(val => val !== 'all');
+      
       const activeOwners = Array.from(document.querySelectorAll('[data-filter-type="owner"].active'))
         .map(el => el.getAttribute('data-filter-value'))
         .filter(val => val !== '');
       
-      return { status: activeStatus, owners: activeOwners };
+      return { statuses: activeStatuses.length === 0 ? ['all'] : activeStatuses, owners: activeOwners };
     }
 
     async function updateComparison() {
@@ -781,7 +966,7 @@ export const html = `<!DOCTYPE html>
         '<div class="empty-state"><div>Loading card images (rate-limited for Scryfall API)...</div></div>';
 
       const filters = getActiveFilters();
-      const filterStatus = filters.status;
+      const filterStatuses = filters.statuses;
       const filterOwners = filters.owners;
 
       const cardMap = new Map();
@@ -821,7 +1006,7 @@ export const html = `<!DOCTYPE html>
         else if (totalOwned > 0) partiallyOwned++;
         else notOwned++;
       }
-      updateStats(allCards, filterStatus, filterOwners, appData.uploadedLists.length);
+      updateStats(allCards, filterStatuses, filterOwners, appData.uploadedLists.length);
 
       // Filter cards
       let cards = Array.from(cardMap.values());
@@ -834,7 +1019,8 @@ export const html = `<!DOCTYPE html>
         else if (totalOwned > 0) status = 'partial';
         else status = 'missing';
 
-        if (filterStatus !== 'all' && filterStatus !== status) return false;
+        // Multi-select status filter
+        if (!filterStatuses.includes(status) && !filterStatuses.includes('all')) return false;
         
         // Multi-select owner filter
         if (filterOwners.length > 0) {
@@ -845,51 +1031,53 @@ export const html = `<!DOCTYPE html>
         return true;
       });
 
-      // Fetch card images from Scryfall with caching and progressive loading
-      const cache = getCardCache();
-      const container = document.getElementById('cardsContainer');
-      
-      // Display cards as they load (progressive loading)
+      // Display cards immediately
       displayCards(cards);
       
-      // Fetch images in background
-      for (let i = 0; i < cards.length; i++) {
-        const card = cards[i];
+      // Only fetch images if enabled
+      if (imagesEnabled) {
+        // Fetch card images from Scryfall with caching and progressive loading
+        const cache = getCardCache();
         
-        // Check cache first
-        if (cache[card.name]) {
-          card.imageUrl = cache[card.name];
-          updateCardDisplay(card);
-        } else {
-          // Fetch from Scryfall
-          try {
-            // Format card name for Scryfall API: replace spaces with hyphens
-            const formattedName = card.name.split(' ').join('-');
-            console.log(\`Fetching card: '\${card.name}' -> '\${formattedName}'\`);
-            const response = await fetch(\`https://api.scryfall.com/cards/search?q=!\${encodeURIComponent(formattedName)}&unique=prints\`);
-            if (response.ok) {
-              const data = await response.json();
-              if (data.data && data.data.length > 0) {
-                card.imageUrl = data.data[0].image_uris?.normal;
-                if (card.imageUrl) {
-                  cache[card.name] = card.imageUrl;
+        // Fetch images in background
+        for (let i = 0; i < cards.length; i++) {
+          const card = cards[i];
+          
+          // Check cache first
+          if (cache[card.name]) {
+            card.imageUrl = cache[card.name];
+            updateCardDisplay(card);
+          } else {
+            // Fetch from Scryfall
+            try {
+              // Format card name for Scryfall API: replace spaces with hyphens
+              const formattedName = card.name.split(' ').join('-');
+              console.log(\`Fetching card: '\${card.name}' -> '\${formattedName}'\`);
+              const response = await fetch(\`https://api.scryfall.com/cards/search?q=!\${encodeURIComponent(formattedName)}&unique=prints\`);
+              if (response.ok) {
+                const data = await response.json();
+                if (data.data && data.data.length > 0) {
+                  card.imageUrl = data.data[0].image_uris?.normal;
+                  if (card.imageUrl) {
+                    cache[card.name] = card.imageUrl;
+                  }
                 }
               }
+            } catch (error) {
+              console.error('Error fetching card image:', error);
             }
-          } catch (error) {
-            console.error('Error fetching card image:', error);
+            updateCardDisplay(card);
           }
-          updateCardDisplay(card);
+          
+          // Rate limiting: wait 200ms between requests (5 requests per second)
+          if (i < cards.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 200));
+          }
         }
         
-        // Rate limiting: wait 200ms between requests (5 requests per second)
-        if (i < cards.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 200));
-        }
+        // Save updated cache
+        saveCardCache(cache);
       }
-      
-      // Save updated cache
-      saveCardCache(cache);
     }
 
     function updateCardDisplay(card) {
@@ -907,7 +1095,7 @@ export const html = `<!DOCTYPE html>
       }
     }
 
-    function displayCards(cards) {
+    async function displayCards(cards) {
       const container = document.getElementById('cardsContainer');
       
       if (cards.length === 0) {
@@ -915,34 +1103,85 @@ export const html = `<!DOCTYPE html>
         return;
       }
 
-      container.innerHTML = cards.map(card => {
-        const totalOwned = Object.values(card.owners).reduce((a, b) => a + b, 0);
-        const isFullyOwned = totalOwned >= card.needed;
-        const isPartiallyOwned = totalOwned > 0 && totalOwned < card.needed;
-        
-        const ownersList = Object.entries(card.owners)
-          .map(([owner, count]) => {
-            let badgeClass = 'owner-badge';
-            if (count >= card.needed) badgeClass += ' owned';
-            else if (count > 0) badgeClass += ' partial';
-            else badgeClass += ' missing';
-            return \`<span class="\${badgeClass}">\${owner}: \${count}</span>\`;
-          })
-          .join('');
+      if (imagesEnabled) {
+        // Grid view with images
+        container.className = 'cards-grid';
+        container.innerHTML = cards.map(card => {
+          const totalOwned = Object.values(card.owners).reduce((a, b) => a + b, 0);
+          const isFullyOwned = totalOwned >= card.needed;
+          const isPartiallyOwned = totalOwned > 0 && totalOwned < card.needed;
+          
+          const ownersList = Object.entries(card.owners)
+            .map(([owner, count]) => {
+              let badgeClass = 'owner-badge';
+              if (count >= card.needed) badgeClass += ' owned';
+              else if (count > 0) badgeClass += ' partial';
+              else badgeClass += ' missing';
+              return \`<span class="\${badgeClass}">\${owner}: \${count}</span>\`;
+            })
+            .join('');
 
-        return \`
-          <div class="card-item">
-            <div class="card-image">
-              \${card.imageUrl ? \`<img src="\${card.imageUrl}" alt="\${card.name}" onerror="this.style.display='none'">\` : 'No image available'}
+          return \`
+            <div class="card-item">
+              <div class="card-image">
+                \${card.imageUrl ? \`<img src="\${card.imageUrl}" alt="\${card.name}" onerror="this.style.display='none'">\` : 'No image available'}
+              </div>
+              <div class="card-info">
+                <div class="card-name">\${card.name}</div>
+                <div class="card-needed">Need: \${card.needed} | Owned: \${totalOwned}</div>
+                <div class="card-owners">\${ownersList || 'Not owned'}</div>
+              </div>
             </div>
-            <div class="card-info">
-              <div class="card-name">\${card.name}</div>
-              <div class="card-needed">Need: \${card.needed} | Owned: \${totalOwned}</div>
-              <div class="card-owners">\${ownersList || 'Not owned'}</div>
-            </div>
-          </div>
+          \`;
+        }).join('');
+      } else {
+        // Table view without images
+        container.className = '';
+        const headerRow = \`
+          <table class="cards-table">
+            <thead>
+              <tr>
+                <th>Card Name</th>
+                <th>Need</th>
+                <th>Owned</th>
+                <th>Status</th>
+                <th>Owners</th>
+              </tr>
+            </thead>
+            <tbody>
         \`;
-      }).join('');
+        
+        const rows = cards.map(card => {
+          const totalOwned = Object.values(card.owners).reduce((a, b) => a + b, 0);
+          let status;
+          if (totalOwned >= card.needed) status = 'Fully Owned';
+          else if (totalOwned > 0) status = 'Partially Owned';
+          else status = 'Not Owned';
+          
+          const ownersList = Object.entries(card.owners)
+            .map(([owner, count]) => {
+              let badgeClass = 'owner-badge';
+              if (count >= card.needed) badgeClass += ' owned';
+              else if (count > 0) badgeClass += ' partial';
+              else badgeClass += ' missing';
+              return \`<span class="\${badgeClass}">\${owner}: \${count}</span>\`;
+            })
+            .join(' ');
+
+          return \`
+            <tr>
+              <td class="card-name">\${card.name}</td>
+              <td>\${card.needed}</td>
+              <td>\${totalOwned}</td>
+              <td>\${status}</td>
+              <td>\${ownersList || 'Not owned'}</td>
+            </tr>
+          \`;
+        }).join('');
+        
+        const footerRow = '</tbody></table>';
+        container.innerHTML = headerRow + rows + footerRow;
+      }
     }
 
     function updateStats(allCards, filterStatus, filterOwners, totalOwners) {
@@ -950,12 +1189,21 @@ export const html = `<!DOCTYPE html>
       let fullyOwned = 0;
       let partiallyOwned = 0;
       let notOwned = 0;
+      let cardsToBuy = 0;
 
       for (const card of allCards) {
         const totalOwned = Object.values(card.owners).reduce((a, b) => a + b, 0);
-        if (totalOwned >= card.needed) fullyOwned++;
-        else if (totalOwned > 0) partiallyOwned++;
-        else notOwned++;
+        if (totalOwned >= card.needed) {
+          fullyOwned++;
+        } else if (totalOwned > 0) {
+          partiallyOwned++;
+          // Add remaining needed cards to "Cards to Buy"
+          cardsToBuy += (card.needed - totalOwned);
+        } else {
+          notOwned++;
+          // Add all needed cards to "Cards to Buy"
+          cardsToBuy += card.needed;
+        }
       }
 
       // Update stats immediately
@@ -963,6 +1211,7 @@ export const html = `<!DOCTYPE html>
       document.getElementById('fullyOwned').textContent = fullyOwned;
       document.getElementById('partiallyOwned').textContent = partiallyOwned;
       document.getElementById('notOwned').textContent = notOwned;
+      document.getElementById('cardsToBuy').textContent = cardsToBuy;
     }
 
     function exportToCSV() {
@@ -1040,6 +1289,91 @@ export const html = `<!DOCTYPE html>
       a.download = 'mtg-comparison.csv';
       a.click();
       window.URL.revokeObjectURL(url);
+    }
+
+    function exportToCardKingdom() {
+      // Build card map
+      const cardMap = new Map();
+
+      for (const card of appData.primaryList) {
+        if (!cardMap.has(card.name)) {
+          cardMap.set(card.name, {
+            name: card.name,
+            needed: card.count,
+            owners: {}
+          });
+        } else {
+          cardMap.get(card.name).needed += card.count;
+        }
+      }
+
+      for (const list of appData.uploadedLists) {
+        for (const card of list.cards) {
+          if (cardMap.has(card.name)) {
+            const cardData = cardMap.get(card.name);
+            if (!cardData.owners[list.uploaderName]) {
+              cardData.owners[list.uploaderName] = 0;
+            }
+            cardData.owners[list.uploaderName] += card.count;
+          }
+        }
+      }
+
+      // Get active filters
+      const filters = getActiveFilters();
+      const filterStatuses = filters.statuses;
+      const filterOwners = filters.owners;
+
+      // Filter and format cards for Card Kingdom
+      let cards = Array.from(cardMap.values());
+      
+      cards = cards.filter(card => {
+        const totalOwned = Object.values(card.owners).reduce((a, b) => a + b, 0);
+        let status;
+        
+        if (totalOwned >= card.needed) status = 'owned';
+        else if (totalOwned > 0) status = 'partial';
+        else status = 'missing';
+
+        // Multi-select status filter
+        if (!filterStatuses.includes(status) && !filterStatuses.includes('all')) return false;
+        
+        // Multi-select owner filter
+        if (filterOwners.length > 0) {
+          const hasAnyOwner = filterOwners.some(owner => card.owners[owner]);
+          if (!hasAnyOwner) return false;
+        }
+
+        return true;
+      });
+
+      // Format for Card Kingdom bulk deck builder
+      // Format: <quantity> <card name>
+      const deckList = cards.map(card => {
+        const totalOwned = Object.values(card.owners).reduce((a, b) => a + b, 0);
+        
+        if (totalOwned >= card.needed) {
+          // Fully owned - don't include
+          return null;
+        } else if (totalOwned > 0) {
+          // Partially owned - include remaining needed
+          const remaining = card.needed - totalOwned;
+          return \`\${remaining} \${card.name}\`;
+        } else {
+          // Not owned - include all needed
+          return \`\${card.needed} \${card.name}\`;
+        }
+      })
+      .filter(line => line !== null)
+      .join('\\n');
+
+      // Copy to clipboard
+      navigator.clipboard.writeText(deckList).then(() => {
+        alert('Card Kingdom deck list copied to clipboard!\\n\\nYou can now paste it into the Card Kingdom bulk deck builder.');
+      }).catch(err => {
+        console.error('Failed to copy to clipboard:', err);
+        alert('Failed to copy to clipboard. Please try again.');
+      });
     }
 
     // Set up hot reload for development

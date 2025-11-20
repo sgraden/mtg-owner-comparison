@@ -204,6 +204,24 @@ async function handleRequest(request: Request, env: any): Promise<Response> {
     }
   }
 
+  // API: Get card price from Card Kingdom
+  if (pathname.startsWith('/api/price/') && method === 'GET') {
+    try {
+      const cardName = decodeURIComponent(pathname.replace('/api/price/', ''));
+      
+      // Card Kingdom's public API doesn't provide pricing via search
+      // Return null for now - this feature would require their paid API or web scraping
+      return new Response(JSON.stringify({ price: null }), {
+        headers: { 'Content-Type': 'application/json' }
+      });
+    } catch (error) {
+      console.error('Error fetching price:', error);
+      return new Response(JSON.stringify({ price: null, error: String(error) }), {
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+  }
+
   // Serve HTML
   if (pathname === '/' && method === 'GET') {
     return new Response(html, {

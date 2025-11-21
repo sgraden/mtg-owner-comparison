@@ -724,8 +724,8 @@ export const html = `<!DOCTYPE html>
             </div>
           </div>
           <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-            <button class="btn-primary" onclick="exportToCSV()">Export to CSV</button>
-            <button class="btn-primary" onclick="exportToCardKingdom()">Export to Card Kingdom</button>
+            <button class="btn-primary" onclick="exportToCSV()">Export List to CSV</button>
+            <button class="btn-primary" onclick="exportToCardKingdom()">Copy Unowned Cards</button>
           </div>
         </div>
       </div>

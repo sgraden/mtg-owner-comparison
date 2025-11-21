@@ -79,8 +79,8 @@ function sanitizeCardName(name: string): string {
     .trim()
     // Remove leading/trailing quotes (single, double, backticks)
     .replace(/^["'`]+|["'`]+$/g, '')
-    // Remove other problematic characters from start/end
-    .replace(/^[\s\-_:;,|()[\]{}]+|[\s\-_:;,|()[\]{}]+$/g, '')
+    // Remove only leading/trailing whitespace and dashes, not commas or other punctuation
+    .replace(/^[\s\-_]+|[\s\-_]+$/g, '')
     .trim();
 }
 
@@ -90,10 +90,18 @@ function parseCardList(content: string): CardData[] {
   const cardCounts: { [key: string]: number } = {};
   
   for (const line of lines) {
-    // Handle CSV format (name, quantity) or just names
-    const parts = line.split(',').map(p => p.trim());
-    let cardName = parts[0];
-    const quantity = parseInt(parts[1]) || 1;
+    let cardName = '';
+    let quantity = 1;
+    
+    // Try to match format: "quantity cardname" (e.g., "2 Black Lotus")
+    const quantityMatch = line.match(/^(\d+)\s+(.+)$/);
+    if (quantityMatch) {
+      quantity = parseInt(quantityMatch[1]);
+      cardName = quantityMatch[2];
+    } else {
+      // Otherwise treat the whole line as a card name
+      cardName = line;
+    }
     
     // Sanitize the card name
     cardName = sanitizeCardName(cardName);

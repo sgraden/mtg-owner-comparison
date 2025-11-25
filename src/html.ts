@@ -1753,8 +1753,8 @@ export const html = `<!DOCTYPE html>
           // Wait to ensure state is fully updated
           await new Promise(resolve => setTimeout(resolve, 200));
           
-          // Now update the UI - this will re-render everything
-          updateUI();
+          // Update comparison to re-render cards while preserving filters
+          updateComparison();
         } else {
           console.error('Failed to update ownership status');
         }
@@ -1772,7 +1772,7 @@ export const html = `<!DOCTYPE html>
         });
         if (response.ok) {
           await loadOwnershipStatuses();
-          updateUI();
+          updateComparison();
         } else {
           console.error('Failed to delete ownership status');
         }

@@ -271,29 +271,64 @@ export const html = `<!DOCTYPE html>
     }
 
     .card-actions button {
-      padding: 4px 8px;
+      padding: 6px 12px;
       font-size: 0.8em;
-      border: none;
-      border-radius: 3px;
+      border: 1px solid #d4af37;
+      border-radius: 4px;
       cursor: pointer;
-      background: #d4af37;
-      color: #0f1428;
+      background: transparent;
+      color: #d4af37;
       font-weight: 600;
       transition: all 0.2s;
     }
 
     .card-actions button:hover {
-      background: #ffd700;
-      transform: scale(1.05);
+      background: #d4af37;
+      color: #0f1428;
     }
 
     .card-actions button.clear {
+      border-color: #dc3545;
+      color: #dc3545;
+    }
+
+    .card-actions button.clear:hover {
       background: #dc3545;
       color: white;
     }
 
-    .card-actions button.clear:hover {
-      background: #ff6b6b;
+    /* Themed checkbox */
+    input[type="checkbox"] {
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      width: 20px;
+      height: 20px;
+      border: 2px solid #d4af37;
+      border-radius: 3px;
+      background: #0f1428;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    input[type="checkbox"]:hover {
+      border-color: #ffd700;
+      box-shadow: 0 0 8px rgba(212, 175, 55, 0.3);
+    }
+
+    input[type="checkbox"]:checked {
+      background: #d4af37;
+      border-color: #d4af37;
+    }
+
+    input[type="checkbox"]:checked::after {
+      content: '✓';
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #0f1428;
+      font-weight: bold;
+      font-size: 14px;
     }
 
     .comparison-section {
@@ -383,14 +418,7 @@ export const html = `<!DOCTYPE html>
       background: #0f1428;
       border-radius: 0;
       overflow: hidden;
-      border: 2px solid #d4af37;
-      transition: all 0.3s;
-    }
-
-    .card-item:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 0 20px rgba(212, 175, 55, 0.6);
-      border-color: #ffd700;
+      border: 1px solid #333;
     }
 
     .card-image {
@@ -792,6 +820,7 @@ export const html = `<!DOCTYPE html>
         <span style="color: #d4af37; font-weight: 600;"><span id="bulkToolbarCount">0</span> cards selected</span>
         <button class="btn-primary" onclick="openBulkAcquiredModal()" style="padding: 8px 15px;">Bulk: Card Acquired</button>
         <button class="btn-primary" onclick="openBulkGivingModal()" style="padding: 8px 15px;">Bulk: Giving</button>
+        <button class="btn-secondary" onclick="selectAllVisibleCards()" style="padding: 8px 15px;">Select All</button>
         <button class="btn-secondary" onclick="selectedCards.clear(); updateBulkToolbar(); updateUI();" style="padding: 8px 15px; margin-left: auto;">Clear Selection</button>
       </div>
 
@@ -822,7 +851,7 @@ export const html = `<!DOCTYPE html>
       </div>
       <div style="margin-bottom: 15px;">
         <label style="color: #d4af37; display: block; margin-bottom: 5px;">Who Purchased? (optional):</label>
-        <input type="text" id="acquiredBy" placeholder="Name" style="width: 100%; padding: 8px; background: #0f1428; color: #fff; border: 1px solid #d4af37; border-radius: 4px;">
+        <input type="text" id="acquiredBy" placeholder="Leave blank for 'Unknown'" style="width: 100%; padding: 8px; background: #0f1428; color: #fff; border: 1px solid #d4af37; border-radius: 4px;">
       </div>
       <div style="display: flex; gap: 10px;">
         <button class="btn-primary" onclick="confirmCardAcquired()" style="flex: 1;">Confirm</button>
@@ -894,6 +923,7 @@ export const html = `<!DOCTYPE html>
     let ownershipStatuses = [];
     let orphanedStatuses = [];
     let selectedCards = new Set();
+    let cardSortOrder = 'original'; // 'original', 'asc', 'desc'
     let localMode = false;
     let localModeHasChanges = false;
     let backupData = null;
@@ -1608,6 +1638,13 @@ export const html = `<!DOCTYPE html>
         return true;
       });
 
+      // Apply sorting if not in original order
+      if (cardSortOrder === 'asc') {
+        cards.sort((a, b) => a.name.localeCompare(b.name));
+      } else if (cardSortOrder === 'desc') {
+        cards.sort((a, b) => b.name.localeCompare(a.name));
+      }
+
       // Display cards immediately
       displayCards(cards);
       
@@ -1687,8 +1724,10 @@ export const html = `<!DOCTYPE html>
       if (status.purchasedCount > 0) {
         badges += \`<span class="status-badge purchased" title="Purchased by \${status.purchasedBy || 'Unknown'}">Purchased: \${status.purchasedCount}\${status.purchasedBy ? ' by ' + status.purchasedBy : ''}</span>\`;
       }
-      if (status.givingCount > 0) {
-        badges += \`<span class="status-badge giving" title="Giving from \${status.givenFromList || 'Unknown'}">Giving: \${status.givingCount}\${status.givenBy ? ' by ' + status.givenBy : ''}</span>\`;
+      if (status.givingEntries && status.givingEntries.length > 0) {
+        const totalGiving = status.givingEntries.reduce((sum, e) => sum + e.quantity, 0);
+        const giversList = status.givingEntries.map(e => \`\${e.quantity} from \${e.givenBy}\`).join(', ');
+        badges += \`<span class="status-badge giving" title="\${giversList}">Giving: \${totalGiving}</span>\`;
       }
       if (status.flagged) {
         badges += \`<span class="status-badge flagged" title="Needed count changed">⚠️ Changed</span>\`;
@@ -1752,12 +1791,15 @@ export const html = `<!DOCTYPE html>
       document.getElementById('givingQuantity').value = remainingNeeded;
       document.getElementById('givingList').innerHTML = '<option value="">-- Select List --</option>';
       
-      // Populate with uploaded lists
+      // Populate with uploaded lists that contain this card
       for (const list of appData.uploadedLists) {
-        const option = document.createElement('option');
-        option.value = list.uploaderName;
-        option.textContent = list.uploaderName;
-        document.getElementById('givingList').appendChild(option);
+        const hasCard = list.cards.some(c => c.name === cardName);
+        if (hasCard) {
+          const option = document.createElement('option');
+          option.value = list.uploaderName;
+          option.textContent = list.uploaderName;
+          document.getElementById('givingList').appendChild(option);
+        }
       }
       
       document.getElementById('givingModal').style.display = 'flex';
@@ -1765,15 +1807,10 @@ export const html = `<!DOCTYPE html>
 
     async function confirmCardAcquired() {
       const quantity = parseInt(document.getElementById('acquiredQuantity').value);
-      const purchasedBy = document.getElementById('acquiredBy').value.trim();
+      const purchasedBy = document.getElementById('acquiredBy').value.trim() || 'Unknown';
       
       if (!quantity || quantity < 1) {
         alert('Please enter a valid quantity');
-        return;
-      }
-      
-      if (!purchasedBy) {
-        alert('Please enter who purchased the card');
         return;
       }
       
@@ -1807,11 +1844,26 @@ export const html = `<!DOCTYPE html>
         return;
       }
       
+      // Get current status to preserve other fields
+      const currentStatus = getOwnershipStatus(currentCardName);
+      const currentNeededCount = currentStatus?.neededCount || quantity;
+      const currentGivingEntries = currentStatus?.givingEntries || [];
+      
+      // Add new giving entry (or update if from same list)
+      const existingIndex = currentGivingEntries.findIndex(e => e.givenFromList === listName);
+      if (existingIndex >= 0) {
+        currentGivingEntries[existingIndex].quantity = quantity;
+      } else {
+        currentGivingEntries.push({
+          quantity: quantity,
+          givenBy: selectedList.uploaderName,
+          givenFromList: listName
+        });
+      }
+      
       await updateOwnershipStatus(currentCardName, {
-        givingCount: quantity,
-        givenBy: selectedList.uploaderName,
-        givenFromList: listName,
-        neededCount: quantity
+        givingEntries: currentGivingEntries,
+        neededCount: currentNeededCount
       });
       
       closeModal('givingModal');
@@ -1827,14 +1879,64 @@ export const html = `<!DOCTYPE html>
       updateBulkToolbar();
     }
 
+    function selectAllVisibleCards() {
+      // Get all visible card checkboxes and select them
+      const checkboxes = document.querySelectorAll('input[type="checkbox"][onchange*="toggleCardSelection"]');
+      checkboxes.forEach(checkbox => {
+        const cardName = checkbox.getAttribute('onchange').match(/'([^']+)'/)[1];
+        selectedCards.add(cardName);
+        checkbox.checked = true;
+      });
+      updateBulkToolbar();
+    }
+
+    function toggleSelectAll(checked, totalCards) {
+      if (checked) {
+        // Select all visible cards
+        const checkboxes = document.querySelectorAll('input[type="checkbox"][onchange*="toggleCardSelection"]');
+        checkboxes.forEach(checkbox => {
+          const cardName = checkbox.getAttribute('onchange').match(/'([^']+)'/)[1];
+          selectedCards.add(cardName);
+          checkbox.checked = true;
+        });
+      } else {
+        // Deselect all
+        selectedCards.clear();
+        const checkboxes = document.querySelectorAll('input[type="checkbox"][onchange*="toggleCardSelection"]');
+        checkboxes.forEach(checkbox => {
+          checkbox.checked = false;
+        });
+      }
+      updateBulkToolbar();
+    }
+
     function updateBulkToolbar() {
       const toolbar = document.getElementById('bulkToolbar');
+      const selectAllCheckbox = document.getElementById('selectAllCheckbox');
       if (selectedCards.size > 0) {
         toolbar.style.display = 'flex';
+        // Update select all checkbox state
+        if (selectAllCheckbox) {
+          const allCheckboxes = document.querySelectorAll('input[type="checkbox"][onchange*="toggleCardSelection"]');
+          selectAllCheckbox.checked = selectedCards.size === allCheckboxes.length;
+        }
       } else {
         toolbar.style.display = 'none';
-        selectedCards.clear();
+        if (selectAllCheckbox) selectAllCheckbox.checked = false;
       }
+      document.getElementById('bulkToolbarCount').textContent = selectedCards.size;
+    }
+
+    function toggleCardSort() {
+      // Cycle through: original -> asc -> desc -> original
+      if (cardSortOrder === 'original') {
+        cardSortOrder = 'asc';
+      } else if (cardSortOrder === 'asc') {
+        cardSortOrder = 'desc';
+      } else {
+        cardSortOrder = 'original';
+      }
+      updateComparison();
     }
 
     function openBulkAcquiredModal() {
@@ -1846,12 +1948,17 @@ export const html = `<!DOCTYPE html>
     function openBulkGivingModal() {
       document.getElementById('bulkGivingList').innerHTML = '<option value="">-- Select List --</option>';
       
-      // Populate with uploaded lists
+      // Populate with uploaded lists that contain at least one selected card
       for (const list of appData.uploadedLists) {
-        const option = document.createElement('option');
-        option.value = list.uploaderName;
-        option.textContent = list.uploaderName;
-        document.getElementById('bulkGivingList').appendChild(option);
+        const hasAnyCard = Array.from(selectedCards).some(cardName => 
+          list.cards.some(c => c.name === cardName)
+        );
+        if (hasAnyCard) {
+          const option = document.createElement('option');
+          option.value = list.uploaderName;
+          option.textContent = list.uploaderName;
+          document.getElementById('bulkGivingList').appendChild(option);
+        }
       }
       
       document.getElementById('bulkGivingValidation').style.display = 'none';
@@ -1883,12 +1990,7 @@ export const html = `<!DOCTYPE html>
     }
 
     async function confirmBulkAcquired() {
-      const purchasedBy = document.getElementById('bulkAcquiredBy').value.trim();
-      
-      if (!purchasedBy) {
-        alert('Please enter who purchased the cards');
-        return;
-      }
+      const purchasedBy = document.getElementById('bulkAcquiredBy').value.trim() || 'Unknown';
 
       const cardNames = Array.from(selectedCards);
       try {
@@ -1946,9 +2048,11 @@ export const html = `<!DOCTYPE html>
           body: JSON.stringify({
             cardNames: cardNames,
             update: {
-              givingCount: 1,
-              givenBy: selectedList.uploaderName,
-              givenFromList: listName
+              givingEntries: [{
+                quantity: 1,
+                givenBy: selectedList.uploaderName,
+                givenFromList: listName
+              }]
             }
           })
         });
@@ -1985,9 +2089,11 @@ export const html = `<!DOCTYPE html>
         if (status.purchasedCount > 0) {
           statusInfo += \`Purchased: \${status.purchasedCount}\${status.purchasedBy ? ' by ' + status.purchasedBy : ''}\`;
         }
-        if (status.givingCount > 0) {
+        if (status.givingEntries && status.givingEntries.length > 0) {
           if (statusInfo) statusInfo += ' | ';
-          statusInfo += \`Giving: \${status.givingCount}\${status.givenBy ? ' by ' + status.givenBy : ''}\`;
+          const totalGiving = status.givingEntries.reduce((sum, e) => sum + e.quantity, 0);
+          const giversList = status.givingEntries.map(e => \`\${e.quantity} from \${e.givenBy}\`).join(', ');
+          statusInfo += \`Giving: \${totalGiving} (\${giversList})\`;
         }
 
         return \`
@@ -2066,11 +2172,16 @@ export const html = `<!DOCTYPE html>
 
           const remainingNeeded = Math.max(0, card.needed - totalOwned);
           const statusBadges = getStatusBadgeHTML(card.name);
+          const ownershipStatus = getOwnershipStatus(card.name);
+          const hasStatus = ownershipStatus && (ownershipStatus.purchasedCount > 0 || (ownershipStatus.givingEntries && ownershipStatus.givingEntries.length > 0));
+          const canAcquire = remainingNeeded > 0;
+          const canGive = totalOwned > 0;
+          
           const actionButtons = viewOnlyMode ? '' : \`
             <div class="card-actions">
-              <button onclick="openCardAcquiredModal('\${card.name.replace(/'/g, "\\\\'")}', \${remainingNeeded})">Card Acquired</button>
-              <button onclick="openGivingModal('\${card.name.replace(/'/g, "\\\\'")}', \${remainingNeeded})">Giving</button>
-              <button class="clear" onclick="deleteOwnershipStatus('\${card.name.replace(/'/g, "\\\\'")}')">Clear</button>
+              \${canAcquire ? \`<button class="action-btn" onclick="openCardAcquiredModal('\${card.name.replace(/'/g, "\\\\'")}', \${remainingNeeded})">Acquire</button>\` : ''}
+              \${canGive ? \`<button class="action-btn" onclick="openGivingModal('\${card.name.replace(/'/g, "\\\\'")}', \${remainingNeeded})">Give</button>\` : ''}
+              \${hasStatus ? \`<button class="action-btn clear" onclick="deleteOwnershipStatus('\${card.name.replace(/'/g, "\\\\'")}')">Clear</button>\` : ''}
             </div>
           \`;
 
@@ -2100,11 +2211,13 @@ export const html = `<!DOCTYPE html>
             <table class="cards-table">
               <thead>
                 <tr>
-                  <th>Card Name</th>
+                  \${viewOnlyMode ? '' : '<th style="width: 30px;"><input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll(this.checked, ' + cards.length + ')"></th>'}
+                  <th style="cursor: pointer; user-select: none;" onclick="toggleCardSort()" title="Click to sort">Card Name \${cardSortOrder === 'asc' ? '▲' : cardSortOrder === 'desc' ? '▼' : ''}</th>
                   <th>Need</th>
                   <th>Owned</th>
                   <th>Status</th>
                   <th>Owners</th>
+                  \${viewOnlyMode ? '' : '<th style="width: 150px;">Actions</th>'}
                 </tr>
               </thead>
               <tbody>
@@ -2112,10 +2225,17 @@ export const html = `<!DOCTYPE html>
         
         const rows = cards.map(card => {
           const totalOwned = Object.values(card.owners).reduce((a, b) => a + b, 0);
+          const remainingNeeded = Math.max(0, card.needed - totalOwned);
           let status;
           if (totalOwned >= card.needed) status = 'Fully Owned';
           else if (totalOwned > 0) status = 'Partially Owned';
           else status = 'Not Owned';
+          
+          const ownershipStatus = getOwnershipStatus(card.name);
+          const hasStatus = ownershipStatus && (ownershipStatus.purchasedCount > 0 || (ownershipStatus.givingEntries && ownershipStatus.givingEntries.length > 0));
+          const canAcquire = remainingNeeded > 0;
+          const canGive = totalOwned > 0;
+          const statusBadges = getStatusBadgeHTML(card.name);
           
           const ownersList = Object.entries(card.owners)
             .map(([owner, count]) => {
@@ -2127,13 +2247,25 @@ export const html = `<!DOCTYPE html>
             })
             .join(' ');
 
+          const checkbox = viewOnlyMode ? '' : \`<td><input type="checkbox" onchange="toggleCardSelection('\${card.name.replace(/'/g, "\\\\'")}'); document.getElementById('bulkToolbarCount').textContent = selectedCards.size;" \${selectedCards.has(card.name) ? 'checked' : ''}></td>\`;
+          
+          const actionButtons = viewOnlyMode ? '' : \`
+            <td style="white-space: nowrap; display: flex; gap: 4px;">
+              \${canAcquire ? \`<button class="action-btn" style="padding: 6px 10px; font-size: 0.8em;" onclick="openCardAcquiredModal('\${card.name.replace(/'/g, "\\\\'")}', \${remainingNeeded})">Acquire</button>\` : ''}
+              \${canGive ? \`<button class="action-btn" style="padding: 6px 10px; font-size: 0.8em;" onclick="openGivingModal('\${card.name.replace(/'/g, "\\\\'")}', \${remainingNeeded})">Give</button>\` : ''}
+              \${hasStatus ? \`<button class="action-btn clear" style="padding: 6px 10px; font-size: 0.8em;" onclick="deleteOwnershipStatus('\${card.name.replace(/'/g, "\\\\'")}')">Clear</button>\` : ''}
+            </td>
+          \`;
+
           return \`
             <tr>
+              \${checkbox}
               <td class="card-name">\${card.name}</td>
               <td>\${card.needed}</td>
               <td>\${totalOwned}</td>
-              <td>\${status}</td>
+              <td>\${status}\${statusBadges ? \`<br/><small>\${statusBadges}</small>\` : ''}</td>
               <td>\${ownersList || 'Not owned'}</td>
+              \${actionButtons}
             </tr>
           \`;
         }).join('');

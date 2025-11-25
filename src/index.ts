@@ -17,6 +17,12 @@ interface NeededCardsList {
   uploadedAt: string;
 }
 
+interface GivingEntry {
+  quantity: number;
+  givenBy: string;
+  givenFromList: string;
+}
+
 interface CardOwnershipStatus {
   cardName: string;
   neededCount: number;
@@ -25,10 +31,8 @@ interface CardOwnershipStatus {
   purchasedCount: number;
   purchasedBy?: string;
   
-  // Giving tracking
-  givingCount: number;
-  givenBy?: string;
-  givenFromList?: string;
+  // Giving tracking (supports multiple givers)
+  givingEntries: GivingEntry[];
   
   // Metadata
   statusUpdatedAt: string;
@@ -361,7 +365,7 @@ async function handleRequest(request: Request, env: any): Promise<Response> {
           cardName: body.cardName,
           neededCount: body.neededCount || 0,
           purchasedCount: 0,
-          givingCount: 0,
+          givingEntries: [],
           statusUpdatedAt: new Date().toISOString()
         };
         data.ownershipStatuses.push(status);
@@ -369,9 +373,10 @@ async function handleRequest(request: Request, env: any): Promise<Response> {
         // Update existing status
         if (body.purchasedCount !== undefined) status.purchasedCount = body.purchasedCount;
         if (body.purchasedBy !== undefined) status.purchasedBy = body.purchasedBy;
-        if (body.givingCount !== undefined) status.givingCount = body.givingCount;
-        if (body.givenBy !== undefined) status.givenBy = body.givenBy;
-        if (body.givenFromList !== undefined) status.givenFromList = body.givenFromList;
+        // Handle giving entries
+        if (body.givingEntries !== undefined) {
+          status.givingEntries = body.givingEntries;
+        }
         if (body.neededCount !== undefined) status.neededCount = body.neededCount;
         status.statusUpdatedAt = new Date().toISOString();
       }
@@ -403,16 +408,14 @@ async function handleRequest(request: Request, env: any): Promise<Response> {
             cardName: cardName,
             neededCount: body.update.neededCount || 0,
             purchasedCount: 0,
-            givingCount: 0,
+            givingEntries: [],
             statusUpdatedAt: new Date().toISOString()
           };
           data.ownershipStatuses.push(status);
         } else {
           if (body.update.purchasedCount !== undefined) status.purchasedCount = body.update.purchasedCount;
           if (body.update.purchasedBy !== undefined) status.purchasedBy = body.update.purchasedBy;
-          if (body.update.givingCount !== undefined) status.givingCount = body.update.givingCount;
-          if (body.update.givenBy !== undefined) status.givenBy = body.update.givenBy;
-          if (body.update.givenFromList !== undefined) status.givenFromList = body.update.givenFromList;
+          if (body.update.givingEntries !== undefined) status.givingEntries = body.update.givingEntries;
           status.statusUpdatedAt = new Date().toISOString();
         }
         updated++;

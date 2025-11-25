@@ -1143,7 +1143,6 @@ export const html = `<!DOCTYPE html>
         const result = await response.json();
         ownershipStatuses = result.statuses || [];
         orphanedStatuses = result.orphaned || [];
-        console.log('Loaded ownership statuses:', ownershipStatuses.length, 'orphaned:', orphanedStatuses.length);
       } catch (error) {
         console.error('Error loading ownership statuses:', error);
       }
@@ -1745,7 +1744,16 @@ export const html = `<!DOCTYPE html>
           body: JSON.stringify({ cardName, ...update })
         });
         if (response.ok) {
+          // Parse response
+          await response.json();
+          
+          // Reload ownership statuses from server
           await loadOwnershipStatuses();
+          
+          // Wait to ensure state is fully updated
+          await new Promise(resolve => setTimeout(resolve, 200));
+          
+          // Now update the UI - this will re-render everything
           updateUI();
         } else {
           console.error('Failed to update ownership status');
@@ -1758,7 +1766,8 @@ export const html = `<!DOCTYPE html>
     // Delete ownership status via API
     async function deleteOwnershipStatus(cardName) {
       try {
-        const response = await fetch(\`/api/ownership-status/\${encodeURIComponent(cardName)}\`, {
+        const url = '/api/ownership-status/' + encodeURIComponent(cardName);
+        const response = await fetch(url, {
           method: 'DELETE'
         });
         if (response.ok) {
@@ -1788,18 +1797,25 @@ export const html = `<!DOCTYPE html>
 
     function openGivingModal(cardName, remainingNeeded) {
       currentCardName = cardName;
-      document.getElementById('givingQuantity').value = remainingNeeded;
+      document.getElementById('givingQuantity').value = 1; // Default to 1
       document.getElementById('givingList').innerHTML = '<option value="">-- Select List --</option>';
       
       // Populate with uploaded lists that contain this card
+      const validLists = [];
       for (const list of appData.uploadedLists) {
         const hasCard = list.cards.some(c => c.name === cardName);
         if (hasCard) {
+          validLists.push(list);
           const option = document.createElement('option');
           option.value = list.uploaderName;
           option.textContent = list.uploaderName;
           document.getElementById('givingList').appendChild(option);
         }
+      }
+      
+      // Auto-select if only one list
+      if (validLists.length === 1) {
+        document.getElementById('givingList').value = validLists[0].uploaderName;
       }
       
       document.getElementById('givingModal').style.display = 'flex';
@@ -2173,9 +2189,15 @@ export const html = `<!DOCTYPE html>
           const remainingNeeded = Math.max(0, card.needed - totalOwned);
           const statusBadges = getStatusBadgeHTML(card.name);
           const ownershipStatus = getOwnershipStatus(card.name);
+          const totalGiving = ownershipStatus?.givingEntries?.reduce((sum, e) => sum + e.quantity, 0) || 0;
+          const totalPurchased = ownershipStatus?.purchasedCount || 0;
+          const totalTracked = totalGiving + totalPurchased;
+          const isCompleted = totalTracked >= card.needed && totalTracked > 0;
           const hasStatus = ownershipStatus && (ownershipStatus.purchasedCount > 0 || (ownershipStatus.givingEntries && ownershipStatus.givingEntries.length > 0));
           const canAcquire = remainingNeeded > 0;
-          const canGive = totalOwned > 0;
+          const canGive = totalOwned > 0 && !isCompleted;
+          
+          const cardNameStyle = isCompleted ? 'style="background: #2d5f3f; color: #4ade80; font-weight: 600; padding: 4px 8px; border-radius: 4px;"' : '';
           
           const actionButtons = viewOnlyMode ? '' : \`
             <div class="card-actions">
@@ -2194,7 +2216,7 @@ export const html = `<!DOCTYPE html>
                 \${card.imageUrl ? \`<img src="\${card.imageUrl}" alt="\${card.name}" onerror="this.style.display='none'">\` : 'No image available'}
               </div>
               <div class="card-info">
-                <div class="card-name">\${card.name}</div>
+                <div class="card-name" \${cardNameStyle}>\${card.name}</div>
                 <div class="card-needed">Need: \${card.needed} | Owned: \${totalOwned}</div>
                 <div class="card-owners">\${ownersList || 'Not owned'}</div>
                 \${statusBadges ? \`<div>\${statusBadges}</div>\` : ''}
@@ -2232,10 +2254,15 @@ export const html = `<!DOCTYPE html>
           else status = 'Not Owned';
           
           const ownershipStatus = getOwnershipStatus(card.name);
+          const totalGiving = ownershipStatus?.givingEntries?.reduce((sum, e) => sum + e.quantity, 0) || 0;
+          const totalPurchased = ownershipStatus?.purchasedCount || 0;
+          const totalTracked = totalGiving + totalPurchased;
+          const isCompleted = totalTracked >= card.needed && totalTracked > 0;
           const hasStatus = ownershipStatus && (ownershipStatus.purchasedCount > 0 || (ownershipStatus.givingEntries && ownershipStatus.givingEntries.length > 0));
           const canAcquire = remainingNeeded > 0;
-          const canGive = totalOwned > 0;
+          const canGive = totalOwned > 0 && !isCompleted;
           const statusBadges = getStatusBadgeHTML(card.name);
+          const cardNameStyle = isCompleted ? 'style="background: #2d5f3f; color: #4ade80; font-weight: 600;"' : '';
           
           const ownersList = Object.entries(card.owners)
             .map(([owner, count]) => {
@@ -2250,17 +2277,19 @@ export const html = `<!DOCTYPE html>
           const checkbox = viewOnlyMode ? '' : \`<td><input type="checkbox" onchange="toggleCardSelection('\${card.name.replace(/'/g, "\\\\'")}'); document.getElementById('bulkToolbarCount').textContent = selectedCards.size;" \${selectedCards.has(card.name) ? 'checked' : ''}></td>\`;
           
           const actionButtons = viewOnlyMode ? '' : \`
-            <td style="white-space: nowrap; display: flex; gap: 4px;">
-              \${canAcquire ? \`<button class="action-btn" style="padding: 6px 10px; font-size: 0.8em;" onclick="openCardAcquiredModal('\${card.name.replace(/'/g, "\\\\'")}', \${remainingNeeded})">Acquire</button>\` : ''}
-              \${canGive ? \`<button class="action-btn" style="padding: 6px 10px; font-size: 0.8em;" onclick="openGivingModal('\${card.name.replace(/'/g, "\\\\'")}', \${remainingNeeded})">Give</button>\` : ''}
-              \${hasStatus ? \`<button class="action-btn clear" style="padding: 6px 10px; font-size: 0.8em;" onclick="deleteOwnershipStatus('\${card.name.replace(/'/g, "\\\\'")}')">Clear</button>\` : ''}
+            <td style="white-space: nowrap; vertical-align: middle; padding: 8px 4px;">
+              <div style="display: flex; gap: 4px; align-items: center; height: 32px;">
+                \${canAcquire ? \`<button class="action-btn" style="padding: 6px 10px; font-size: 0.8em;" onclick="openCardAcquiredModal('\${card.name.replace(/'/g, "\\\\'")}', \${remainingNeeded})">Acquire</button>\` : ''}
+                \${canGive ? \`<button class="action-btn" style="padding: 6px 10px; font-size: 0.8em;" onclick="openGivingModal('\${card.name.replace(/'/g, "\\\\'")}', \${remainingNeeded})">Give</button>\` : ''}
+                \${hasStatus ? \`<button class="action-btn clear" style="padding: 6px 10px; font-size: 0.8em;" onclick="deleteOwnershipStatus('\${card.name.replace(/'/g, "\\\\'")}')">Clear</button>\` : ''}
+              </div>
             </td>
           \`;
 
           return \`
             <tr>
               \${checkbox}
-              <td class="card-name">\${card.name}</td>
+              <td class="card-name" \${cardNameStyle}>\${card.name}</td>
               <td>\${card.needed}</td>
               <td>\${totalOwned}</td>
               <td>\${status}\${statusBadges ? \`<br/><small>\${statusBadges}</small>\` : ''}</td>

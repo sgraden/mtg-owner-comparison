@@ -364,8 +364,9 @@ async function handleRequest(request: Request, env: any): Promise<Response> {
         status = {
           cardName: body.cardName,
           neededCount: body.neededCount || 0,
-          purchasedCount: 0,
-          givingEntries: [],
+          purchasedCount: body.purchasedCount || 0,
+          purchasedBy: body.purchasedBy,
+          givingEntries: body.givingEntries || [],
           statusUpdatedAt: new Date().toISOString()
         };
         data.ownershipStatuses.push(status);
@@ -407,8 +408,9 @@ async function handleRequest(request: Request, env: any): Promise<Response> {
           status = {
             cardName: cardName,
             neededCount: body.update.neededCount || 0,
-            purchasedCount: 0,
-            givingEntries: [],
+            purchasedCount: body.update.purchasedCount || 0,
+            purchasedBy: body.update.purchasedBy,
+            givingEntries: body.update.givingEntries || [],
             statusUpdatedAt: new Date().toISOString()
           };
           data.ownershipStatuses.push(status);

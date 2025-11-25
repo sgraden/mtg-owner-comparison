@@ -121,14 +121,21 @@ function parseCardList(content: string): CardData[] {
     let cardName = '';
     let quantity = 1;
     
-    // Try to match format: "quantity cardname" (e.g., "2 Black Lotus")
-    const quantityMatch = line.match(/^(\d+)\s+(.+)$/);
-    if (quantityMatch) {
-      quantity = parseInt(quantityMatch[1]);
-      cardName = quantityMatch[2];
+    // Try to match CSV format: "cardname,quantity" (e.g., "Black Lotus,2")
+    const csvMatch = line.match(/^(.+),(\d+)$/);
+    if (csvMatch) {
+      cardName = csvMatch[1].trim();
+      quantity = parseInt(csvMatch[2]);
     } else {
-      // Otherwise treat the whole line as a card name
-      cardName = line;
+      // Try to match format: "quantity cardname" (e.g., "2 Black Lotus")
+      const quantityMatch = line.match(/^(\d+)\s+(.+)$/);
+      if (quantityMatch) {
+        quantity = parseInt(quantityMatch[1]);
+        cardName = quantityMatch[2];
+      } else {
+        // Otherwise treat the whole line as a card name
+        cardName = line;
+      }
     }
     
     // Sanitize the card name

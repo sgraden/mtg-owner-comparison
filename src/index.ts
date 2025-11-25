@@ -17,13 +17,33 @@ interface NeededCardsList {
   uploadedAt: string;
 }
 
+interface CardOwnershipStatus {
+  cardName: string;
+  neededCount: number;
+  
+  // Purchase tracking
+  purchasedCount: number;
+  purchasedBy?: string;
+  
+  // Giving tracking
+  givingCount: number;
+  givenBy?: string;
+  givenFromList?: string;
+  
+  // Metadata
+  statusUpdatedAt: string;
+  neededCountUpdatedAt?: string;
+  flagged?: boolean;
+}
+
 interface StorageData {
   primaryLists: NeededCardsList[];
   uploadedLists: UploadedList[];
+  ownershipStatuses: CardOwnershipStatus[];
 }
 
 // In-memory storage for local development
-let memoryStorage: StorageData = { primaryLists: [], uploadedLists: [] };
+let memoryStorage: StorageData = { primaryLists: [], uploadedLists: [], ownershipStatuses: [] };
 
 // Helper to get storage data
 async function getStorageData(env: any): Promise<StorageData> {
@@ -35,12 +55,16 @@ async function getStorageData(env: any): Promise<StorageData> {
         // R2 returns a GetResult object, need to call .text() to get the string
         const jsonString = await result.text();
         const parsed = JSON.parse(jsonString);
-        console.log('Data loaded from R2:', { primaryLists: parsed.primaryLists.length, uploadedLists: parsed.uploadedLists.length });
+        // Data migration: ensure ownershipStatuses exists
+        if (!parsed.ownershipStatuses) {
+          parsed.ownershipStatuses = [];
+        }
+        console.log('Data loaded from R2:', { primaryLists: parsed.primaryLists.length, uploadedLists: parsed.uploadedLists.length, ownershipStatuses: parsed.ownershipStatuses.length });
         return parsed;
       } else {
         // No data in R2 yet, return empty
         console.log('No data in R2 yet, returning empty');
-        return { primaryLists: [], uploadedLists: [] };
+        return { primaryLists: [], uploadedLists: [], ownershipStatuses: [] };
       }
     } catch (error) {
       console.error('R2 storage error:', error);
@@ -112,6 +136,45 @@ function parseCardList(content: string): CardData[] {
   }
   
   return Object.entries(cardCounts).map(([name, count]) => ({ name, count }));
+}
+
+// Helper: Get all card names from needed lists
+function getAllNeededCardNames(primaryLists: NeededCardsList[]): Set<string> {
+  const names = new Set<string>();
+  for (const list of primaryLists) {
+    for (const card of list.cards) {
+      names.add(card.name);
+    }
+  }
+  return names;
+}
+
+// Helper: Identify orphaned ownership statuses
+function getOrphanedStatuses(statuses: CardOwnershipStatus[], neededCardNames: Set<string>): CardOwnershipStatus[] {
+  return statuses.filter(status => !neededCardNames.has(status.cardName));
+}
+
+// Helper: Check if card needs count has changed
+function checkAndFlagCardChanges(statuses: CardOwnershipStatus[], primaryLists: NeededCardsList[]): CardOwnershipStatus[] {
+  const cardNeededCounts = new Map<string, number>();
+  
+  // Build current needed counts
+  for (const list of primaryLists) {
+    for (const card of list.cards) {
+      cardNeededCounts.set(card.name, (cardNeededCounts.get(card.name) || 0) + card.count);
+    }
+  }
+  
+  // Check each status and flag if needed count changed
+  return statuses.map(status => {
+    const currentNeeded = cardNeededCounts.get(status.cardName) || 0;
+    const hasChanged = currentNeeded !== status.neededCount;
+    return {
+      ...status,
+      flagged: hasChanged,
+      neededCountUpdatedAt: hasChanged ? new Date().toISOString() : status.neededCountUpdatedAt
+    };
+  });
 }
 
 // Route handler
@@ -260,6 +323,131 @@ async function handleRequest(request: Request, env: any): Promise<Response> {
       return new Response(JSON.stringify({ price: null, error: String(error) }), {
         headers: { 'Content-Type': 'application/json' }
       });
+    }
+  }
+
+  // API: Get ownership statuses with flagging
+  if (pathname === '/api/ownership-status/statuses' && method === 'GET') {
+    try {
+      const data = await getStorageData(env);
+      const neededCardNames = getAllNeededCardNames(data.primaryLists);
+      let statuses = checkAndFlagCardChanges(data.ownershipStatuses, data.primaryLists);
+      
+      return new Response(JSON.stringify({
+        statuses: statuses,
+        orphaned: getOrphanedStatuses(statuses, neededCardNames)
+      }), {
+        headers: { 'Content-Type': 'application/json' }
+      });
+    } catch (error) {
+      return new Response(JSON.stringify({ error: String(error) }), { status: 500 });
+    }
+  }
+
+  // API: Update single ownership status
+  if (pathname === '/api/ownership-status/update' && method === 'POST') {
+    try {
+      const body = await request.json() as Partial<CardOwnershipStatus>;
+      const data = await getStorageData(env);
+      
+      if (!body.cardName) {
+        return new Response(JSON.stringify({ error: 'cardName required' }), { status: 400 });
+      }
+      
+      // Find or create status entry
+      let status = data.ownershipStatuses.find(s => s.cardName === body.cardName);
+      if (!status) {
+        status = {
+          cardName: body.cardName,
+          neededCount: body.neededCount || 0,
+          purchasedCount: 0,
+          givingCount: 0,
+          statusUpdatedAt: new Date().toISOString()
+        };
+        data.ownershipStatuses.push(status);
+      } else {
+        // Update existing status
+        if (body.purchasedCount !== undefined) status.purchasedCount = body.purchasedCount;
+        if (body.purchasedBy !== undefined) status.purchasedBy = body.purchasedBy;
+        if (body.givingCount !== undefined) status.givingCount = body.givingCount;
+        if (body.givenBy !== undefined) status.givenBy = body.givenBy;
+        if (body.givenFromList !== undefined) status.givenFromList = body.givenFromList;
+        if (body.neededCount !== undefined) status.neededCount = body.neededCount;
+        status.statusUpdatedAt = new Date().toISOString();
+      }
+      
+      await saveStorageData(env, data);
+      return new Response(JSON.stringify({ success: true, status }), {
+        headers: { 'Content-Type': 'application/json' }
+      });
+    } catch (error) {
+      return new Response(JSON.stringify({ error: String(error) }), { status: 500 });
+    }
+  }
+
+  // API: Bulk update ownership statuses
+  if (pathname === '/api/ownership-status/bulk-update' && method === 'POST') {
+    try {
+      const body = await request.json() as { cardNames: string[], update: Partial<CardOwnershipStatus> };
+      const data = await getStorageData(env);
+      
+      if (!body.cardNames || !Array.isArray(body.cardNames)) {
+        return new Response(JSON.stringify({ error: 'cardNames array required' }), { status: 400 });
+      }
+      
+      let updated = 0;
+      for (const cardName of body.cardNames) {
+        let status = data.ownershipStatuses.find(s => s.cardName === cardName);
+        if (!status) {
+          status = {
+            cardName: cardName,
+            neededCount: body.update.neededCount || 0,
+            purchasedCount: 0,
+            givingCount: 0,
+            statusUpdatedAt: new Date().toISOString()
+          };
+          data.ownershipStatuses.push(status);
+        } else {
+          if (body.update.purchasedCount !== undefined) status.purchasedCount = body.update.purchasedCount;
+          if (body.update.purchasedBy !== undefined) status.purchasedBy = body.update.purchasedBy;
+          if (body.update.givingCount !== undefined) status.givingCount = body.update.givingCount;
+          if (body.update.givenBy !== undefined) status.givenBy = body.update.givenBy;
+          if (body.update.givenFromList !== undefined) status.givenFromList = body.update.givenFromList;
+          status.statusUpdatedAt = new Date().toISOString();
+        }
+        updated++;
+      }
+      
+      await saveStorageData(env, data);
+      return new Response(JSON.stringify({ success: true, updated }), {
+        headers: { 'Content-Type': 'application/json' }
+      });
+    } catch (error) {
+      return new Response(JSON.stringify({ error: String(error) }), { status: 500 });
+    }
+  }
+
+  // API: Delete ownership status
+  if (pathname.startsWith('/api/ownership-status/') && method === 'DELETE') {
+    try {
+      const cardName = decodeURIComponent(pathname.replace('/api/ownership-status/', ''));
+      const data = await getStorageData(env);
+      
+      if (cardName === 'orphaned/all') {
+        // Delete all orphaned statuses
+        const neededCardNames = getAllNeededCardNames(data.primaryLists);
+        data.ownershipStatuses = data.ownershipStatuses.filter(s => neededCardNames.has(s.cardName));
+      } else {
+        // Delete specific status
+        data.ownershipStatuses = data.ownershipStatuses.filter(s => s.cardName !== cardName);
+      }
+      
+      await saveStorageData(env, data);
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { 'Content-Type': 'application/json' }
+      });
+    } catch (error) {
+      return new Response(JSON.stringify({ error: String(error) }), { status: 500 });
     }
   }
 

@@ -238,6 +238,64 @@ export const html = `<!DOCTYPE html>
       font-size: 0.9em;
     }
 
+    .status-badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.85em;
+      font-weight: 600;
+      margin-right: 6px;
+      margin-top: 4px;
+    }
+
+    .status-badge.purchased {
+      background: #28a745;
+      color: white;
+    }
+
+    .status-badge.giving {
+      background: #007bff;
+      color: white;
+    }
+
+    .status-badge.flagged {
+      background: #ffc107;
+      color: #333;
+    }
+
+    .card-actions {
+      display: flex;
+      gap: 6px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+
+    .card-actions button {
+      padding: 4px 8px;
+      font-size: 0.8em;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+      background: #d4af37;
+      color: #0f1428;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+
+    .card-actions button:hover {
+      background: #ffd700;
+      transform: scale(1.05);
+    }
+
+    .card-actions button.clear {
+      background: #dc3545;
+      color: white;
+    }
+
+    .card-actions button.clear:hover {
+      background: #ff6b6b;
+    }
+
     .comparison-section {
       background: linear-gradient(135deg, #1a1f3a 0%, #2d1b4e 100%);
       border: 2px solid #d4af37;
@@ -730,12 +788,112 @@ export const html = `<!DOCTYPE html>
         </div>
       </div>
 
+      <div id="bulkToolbar" style="display: none; background: #1a1f3a; border: 2px solid #d4af37; padding: 15px; margin-bottom: 20px; border-radius: 4px; gap: 10px; align-items: center; flex-wrap: wrap;">
+        <span style="color: #d4af37; font-weight: 600;"><span id="bulkToolbarCount">0</span> cards selected</span>
+        <button class="btn-primary" onclick="openBulkAcquiredModal()" style="padding: 8px 15px;">Bulk: Card Acquired</button>
+        <button class="btn-primary" onclick="openBulkGivingModal()" style="padding: 8px 15px;">Bulk: Giving</button>
+        <button class="btn-secondary" onclick="selectedCards.clear(); updateBulkToolbar(); updateUI();" style="padding: 8px 15px; margin-left: auto;">Clear Selection</button>
+      </div>
+
       <div id="cardsContainer" class="cards-grid"></div>
+
+      <!-- Orphaned Cards Section -->
+      <div id="orphanedSection" style="display: none; margin-top: 40px; background: linear-gradient(135deg, #2d1b4e 0%, #1a1f3a 100%); border: 2px solid #ffc107; padding: 25px; box-shadow: 0 0 20px rgba(255, 193, 7, 0.2);">
+        <h3 style="color: #ffc107; margin-top: 0; display: flex; align-items: center; gap: 10px;">
+          ⚠️ Orphaned Cards
+          <span style="font-size: 0.8em; color: #a8b8e6;">(<span id="orphanedCount">0</span> cards)</span>
+        </h3>
+        <p style="color: #a8b8e6; margin-bottom: 15px;">These cards have purchase/giving status but are no longer in any needed list. You can clear them individually or all at once.</p>
+        <div id="orphanedList" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px; max-height: 300px; overflow-y: auto;"></div>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+          <button class="btn-primary" onclick="clearAllOrphaned()" style="background: #ffc107; color: #333;">Clear All Orphaned Cards</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card Acquired Modal -->
+  <div id="cardAcquiredModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; justify-content: center; align-items: center;">
+    <div style="background: #1a1f3a; border: 2px solid #d4af37; padding: 25px; border-radius: 8px; max-width: 400px; width: 90%;">
+      <h3 style="color: #d4af37; margin-top: 0;">Card Acquired</h3>
+      <div style="margin-bottom: 15px;">
+        <label style="color: #d4af37; display: block; margin-bottom: 5px;">Quantity Purchased:</label>
+        <input type="number" id="acquiredQuantity" min="1" style="width: 100%; padding: 8px; background: #0f1428; color: #fff; border: 1px solid #d4af37; border-radius: 4px;">
+      </div>
+      <div style="margin-bottom: 15px;">
+        <label style="color: #d4af37; display: block; margin-bottom: 5px;">Who Purchased? (optional):</label>
+        <input type="text" id="acquiredBy" placeholder="Name" style="width: 100%; padding: 8px; background: #0f1428; color: #fff; border: 1px solid #d4af37; border-radius: 4px;">
+      </div>
+      <div style="display: flex; gap: 10px;">
+        <button class="btn-primary" onclick="confirmCardAcquired()" style="flex: 1;">Confirm</button>
+        <button class="btn-secondary" onclick="closeModal('cardAcquiredModal')" style="flex: 1;">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Giving Modal -->
+  <div id="givingModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; justify-content: center; align-items: center;">
+    <div style="background: #1a1f3a; border: 2px solid #d4af37; padding: 25px; border-radius: 8px; max-width: 400px; width: 90%;">
+      <h3 style="color: #d4af37; margin-top: 0;">Mark as Giving</h3>
+      <div style="margin-bottom: 15px;">
+        <label style="color: #d4af37; display: block; margin-bottom: 5px;">Quantity Giving:</label>
+        <input type="number" id="givingQuantity" min="1" style="width: 100%; padding: 8px; background: #0f1428; color: #fff; border: 1px solid #d4af37; border-radius: 4px;">
+      </div>
+      <div style="margin-bottom: 15px;">
+        <label style="color: #d4af37; display: block; margin-bottom: 5px;">Select Owned List:</label>
+        <select id="givingList" style="width: 100%; padding: 8px; background: #0f1428; color: #fff; border: 1px solid #d4af37; border-radius: 4px;">
+          <option value="">-- Select List --</option>
+        </select>
+      </div>
+      <div style="display: flex; gap: 10px;">
+        <button class="btn-primary" onclick="confirmGiving()" style="flex: 1;">Confirm</button>
+        <button class="btn-secondary" onclick="closeModal('givingModal')" style="flex: 1;">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bulk Card Acquired Modal -->
+  <div id="bulkAcquiredModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; justify-content: center; align-items: center;">
+    <div style="background: #1a1f3a; border: 2px solid #d4af37; padding: 25px; border-radius: 8px; max-width: 400px; width: 90%;">
+      <h3 style="color: #d4af37; margin-top: 0;">Bulk: Card Acquired</h3>
+      <p style="color: #a8b8e6; margin-bottom: 15px;">Mark <span id="bulkSelectedCount">0</span> cards as fully acquired?</p>
+      <div style="margin-bottom: 15px;">
+        <label style="color: #d4af37; display: block; margin-bottom: 5px;">Who Purchased? (optional):</label>
+        <input type="text" id="bulkAcquiredBy" placeholder="Name" style="width: 100%; padding: 8px; background: #0f1428; color: #fff; border: 1px solid #d4af37; border-radius: 4px;">
+      </div>
+      <div style="display: flex; gap: 10px;">
+        <button class="btn-primary" onclick="confirmBulkAcquired()" style="flex: 1;">Confirm</button>
+        <button class="btn-secondary" onclick="closeModal('bulkAcquiredModal')" style="flex: 1;">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bulk Giving Modal -->
+  <div id="bulkGivingModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; justify-content: center; align-items: center;">
+    <div style="background: #1a1f3a; border: 2px solid #d4af37; padding: 25px; border-radius: 8px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto;">
+      <h3 style="color: #d4af37; margin-top: 0;">Bulk: Mark as Giving</h3>
+      <div style="margin-bottom: 15px;">
+        <label style="color: #d4af37; display: block; margin-bottom: 5px;">Select Owned List:</label>
+        <select id="bulkGivingList" style="width: 100%; padding: 8px; background: #0f1428; color: #fff; border: 1px solid #d4af37; border-radius: 4px;" onchange="updateBulkGivingValidation()">
+          <option value="">-- Select List --</option>
+        </select>
+      </div>
+      <div id="bulkGivingValidation" style="margin-bottom: 15px; padding: 12px; background: #0f1428; border-left: 4px solid #ffc107; border-radius: 4px; display: none;">
+        <p style="color: #ffc107; margin: 0; font-weight: 600;">Validation</p>
+        <p id="bulkGivingValidationText" style="color: #a8b8e6; margin: 5px 0 0 0; font-size: 0.9em;"></p>
+      </div>
+      <div style="display: flex; gap: 10px;">
+        <button class="btn-primary" onclick="confirmBulkGiving()" style="flex: 1;">Confirm</button>
+        <button class="btn-secondary" onclick="closeModal('bulkGivingModal')" style="flex: 1;">Cancel</button>
+      </div>
     </div>
   </div>
 
   <script>
-    let appData = { primaryLists: [], uploadedLists: [] };
+    let appData = { primaryLists: [], uploadedLists: [], ownershipStatuses: [] };
+    let ownershipStatuses = [];
+    let orphanedStatuses = [];
+    let selectedCards = new Set();
     let localMode = false;
     let localModeHasChanges = false;
     let backupData = null;
@@ -928,6 +1086,7 @@ export const html = `<!DOCTYPE html>
         }
         
         appData = data;
+        await loadOwnershipStatuses();
         updateUI();
       } catch (error) {
         console.error('Error loading data:', error);
@@ -940,6 +1099,23 @@ export const html = `<!DOCTYPE html>
         } else {
           console.error('Failed to load data after all retries');
         }
+      }
+    }
+
+    // Load ownership statuses
+    async function loadOwnershipStatuses() {
+      try {
+        const response = await fetch('/api/ownership-status/statuses');
+        if (!response.ok) {
+          console.error('Failed to load ownership statuses');
+          return;
+        }
+        const result = await response.json();
+        ownershipStatuses = result.statuses || [];
+        orphanedStatuses = result.orphaned || [];
+        console.log('Loaded ownership statuses:', ownershipStatuses.length, 'orphaned:', orphanedStatuses.length);
+      } catch (error) {
+        console.error('Error loading ownership statuses:', error);
       }
     }
 
@@ -1492,6 +1668,359 @@ export const html = `<!DOCTYPE html>
         // Save updated cache
         saveCardCache(cache);
       }
+
+      // Display orphaned cards section
+      displayOrphanedCards();
+    }
+
+    // Get ownership status for a card
+    function getOwnershipStatus(cardName) {
+      return ownershipStatuses.find(s => s.cardName === cardName);
+    }
+
+    // Get status badge HTML
+    function getStatusBadgeHTML(cardName) {
+      const status = getOwnershipStatus(cardName);
+      if (!status) return '';
+      
+      let badges = '';
+      if (status.purchasedCount > 0) {
+        badges += \`<span class="status-badge purchased" title="Purchased by \${status.purchasedBy || 'Unknown'}">Purchased: \${status.purchasedCount}\${status.purchasedBy ? ' by ' + status.purchasedBy : ''}</span>\`;
+      }
+      if (status.givingCount > 0) {
+        badges += \`<span class="status-badge giving" title="Giving from \${status.givenFromList || 'Unknown'}">Giving: \${status.givingCount}\${status.givenBy ? ' by ' + status.givenBy : ''}</span>\`;
+      }
+      if (status.flagged) {
+        badges += \`<span class="status-badge flagged" title="Needed count changed">⚠️ Changed</span>\`;
+      }
+      
+      return badges;
+    }
+
+    // Update ownership status via API
+    async function updateOwnershipStatus(cardName, update) {
+      try {
+        const response = await fetch('/api/ownership-status/update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cardName, ...update })
+        });
+        if (response.ok) {
+          await loadOwnershipStatuses();
+          updateUI();
+        } else {
+          console.error('Failed to update ownership status');
+        }
+      } catch (error) {
+        console.error('Error updating ownership status:', error);
+      }
+    }
+
+    // Delete ownership status via API
+    async function deleteOwnershipStatus(cardName) {
+      try {
+        const response = await fetch(\`/api/ownership-status/\${encodeURIComponent(cardName)}\`, {
+          method: 'DELETE'
+        });
+        if (response.ok) {
+          await loadOwnershipStatuses();
+          updateUI();
+        } else {
+          console.error('Failed to delete ownership status');
+        }
+      } catch (error) {
+        console.error('Error deleting ownership status:', error);
+      }
+    }
+
+    // Modal control functions
+    let currentCardName = '';
+
+    function closeModal(modalId) {
+      document.getElementById(modalId).style.display = 'none';
+    }
+
+    function openCardAcquiredModal(cardName, remainingNeeded) {
+      currentCardName = cardName;
+      document.getElementById('acquiredQuantity').value = remainingNeeded;
+      document.getElementById('acquiredBy').value = '';
+      document.getElementById('cardAcquiredModal').style.display = 'flex';
+    }
+
+    function openGivingModal(cardName, remainingNeeded) {
+      currentCardName = cardName;
+      document.getElementById('givingQuantity').value = remainingNeeded;
+      document.getElementById('givingList').innerHTML = '<option value="">-- Select List --</option>';
+      
+      // Populate with uploaded lists
+      for (const list of appData.uploadedLists) {
+        const option = document.createElement('option');
+        option.value = list.uploaderName;
+        option.textContent = list.uploaderName;
+        document.getElementById('givingList').appendChild(option);
+      }
+      
+      document.getElementById('givingModal').style.display = 'flex';
+    }
+
+    async function confirmCardAcquired() {
+      const quantity = parseInt(document.getElementById('acquiredQuantity').value);
+      const purchasedBy = document.getElementById('acquiredBy').value.trim();
+      
+      if (!quantity || quantity < 1) {
+        alert('Please enter a valid quantity');
+        return;
+      }
+      
+      if (!purchasedBy) {
+        alert('Please enter who purchased the card');
+        return;
+      }
+      
+      await updateOwnershipStatus(currentCardName, {
+        purchasedCount: quantity,
+        purchasedBy: purchasedBy,
+        neededCount: quantity
+      });
+      
+      closeModal('cardAcquiredModal');
+    }
+
+    async function confirmGiving() {
+      const quantity = parseInt(document.getElementById('givingQuantity').value);
+      const listName = document.getElementById('givingList').value;
+      
+      if (!quantity || quantity < 1) {
+        alert('Please enter a valid quantity');
+        return;
+      }
+      
+      if (!listName) {
+        alert('Please select an owned list');
+        return;
+      }
+      
+      // Get the uploader name from the selected list
+      const selectedList = appData.uploadedLists.find(l => l.uploaderName === listName);
+      if (!selectedList) {
+        alert('Selected list not found');
+        return;
+      }
+      
+      await updateOwnershipStatus(currentCardName, {
+        givingCount: quantity,
+        givenBy: selectedList.uploaderName,
+        givenFromList: listName,
+        neededCount: quantity
+      });
+      
+      closeModal('givingModal');
+    }
+
+    // Bulk action functions
+    function toggleCardSelection(cardName) {
+      if (selectedCards.has(cardName)) {
+        selectedCards.delete(cardName);
+      } else {
+        selectedCards.add(cardName);
+      }
+      updateBulkToolbar();
+    }
+
+    function updateBulkToolbar() {
+      const toolbar = document.getElementById('bulkToolbar');
+      if (selectedCards.size > 0) {
+        toolbar.style.display = 'flex';
+      } else {
+        toolbar.style.display = 'none';
+        selectedCards.clear();
+      }
+    }
+
+    function openBulkAcquiredModal() {
+      document.getElementById('bulkSelectedCount').textContent = selectedCards.size;
+      document.getElementById('bulkAcquiredBy').value = '';
+      document.getElementById('bulkAcquiredModal').style.display = 'flex';
+    }
+
+    function openBulkGivingModal() {
+      document.getElementById('bulkGivingList').innerHTML = '<option value="">-- Select List --</option>';
+      
+      // Populate with uploaded lists
+      for (const list of appData.uploadedLists) {
+        const option = document.createElement('option');
+        option.value = list.uploaderName;
+        option.textContent = list.uploaderName;
+        document.getElementById('bulkGivingList').appendChild(option);
+      }
+      
+      document.getElementById('bulkGivingValidation').style.display = 'none';
+      document.getElementById('bulkGivingModal').style.display = 'flex';
+    }
+
+    function updateBulkGivingValidation() {
+      const listName = document.getElementById('bulkGivingList').value;
+      if (!listName) {
+        document.getElementById('bulkGivingValidation').style.display = 'none';
+        return;
+      }
+
+      const selectedList = appData.uploadedLists.find(l => l.uploaderName === listName);
+      if (!selectedList) return;
+
+      const cardsInList = new Set(selectedList.cards.map(c => c.name));
+      const cardsNotInList = Array.from(selectedCards).filter(name => !cardsInList.has(name));
+
+      if (cardsNotInList.length > 0) {
+        document.getElementById('bulkGivingValidation').style.display = 'block';
+        document.getElementById('bulkGivingValidationText').textContent = 
+          \`⚠️ \${cardsNotInList.length} of \${selectedCards.size} cards are NOT in "\${listName}". Only \${selectedCards.size - cardsNotInList.length} will be marked as giving.\`;
+      } else {
+        document.getElementById('bulkGivingValidation').style.display = 'block';
+        document.getElementById('bulkGivingValidationText').textContent = 
+          \`✓ All \${selectedCards.size} selected cards found in "\${listName}".\`;
+      }
+    }
+
+    async function confirmBulkAcquired() {
+      const purchasedBy = document.getElementById('bulkAcquiredBy').value.trim();
+      
+      if (!purchasedBy) {
+        alert('Please enter who purchased the cards');
+        return;
+      }
+
+      const cardNames = Array.from(selectedCards);
+      try {
+        const response = await fetch('/api/ownership-status/bulk-update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            cardNames: cardNames,
+            update: {
+              purchasedCount: 1,
+              purchasedBy: purchasedBy
+            }
+          })
+        });
+
+        if (response.ok) {
+          await loadOwnershipStatuses();
+          selectedCards.clear();
+          updateBulkToolbar();
+          updateUI();
+          closeModal('bulkAcquiredModal');
+        }
+      } catch (error) {
+        console.error('Error bulk updating:', error);
+        alert('Error updating cards');
+      }
+    }
+
+    async function confirmBulkGiving() {
+      const listName = document.getElementById('bulkGivingList').value;
+      
+      if (!listName) {
+        alert('Please select an owned list');
+        return;
+      }
+
+      const selectedList = appData.uploadedLists.find(l => l.uploaderName === listName);
+      if (!selectedList) {
+        alert('Selected list not found');
+        return;
+      }
+
+      const cardsInList = new Set(selectedList.cards.map(c => c.name));
+      const cardNames = Array.from(selectedCards).filter(name => cardsInList.has(name));
+
+      if (cardNames.length === 0) {
+        alert('No selected cards found in this list');
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/ownership-status/bulk-update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            cardNames: cardNames,
+            update: {
+              givingCount: 1,
+              givenBy: selectedList.uploaderName,
+              givenFromList: listName
+            }
+          })
+        });
+
+        if (response.ok) {
+          await loadOwnershipStatuses();
+          selectedCards.clear();
+          updateBulkToolbar();
+          updateUI();
+          closeModal('bulkGivingModal');
+        }
+      } catch (error) {
+        console.error('Error bulk updating:', error);
+        alert('Error updating cards');
+      }
+    }
+
+    // Orphaned cards functions
+    function displayOrphanedCards() {
+      const orphanedSection = document.getElementById('orphanedSection');
+      const orphanedList = document.getElementById('orphanedList');
+      const orphanedCount = document.getElementById('orphanedCount');
+
+      if (orphanedStatuses.length === 0) {
+        orphanedSection.style.display = 'none';
+        return;
+      }
+
+      orphanedSection.style.display = 'block';
+      orphanedCount.textContent = orphanedStatuses.length;
+
+      orphanedList.innerHTML = orphanedStatuses.map(status => {
+        let statusInfo = '';
+        if (status.purchasedCount > 0) {
+          statusInfo += \`Purchased: \${status.purchasedCount}\${status.purchasedBy ? ' by ' + status.purchasedBy : ''}\`;
+        }
+        if (status.givingCount > 0) {
+          if (statusInfo) statusInfo += ' | ';
+          statusInfo += \`Giving: \${status.givingCount}\${status.givenBy ? ' by ' + status.givenBy : ''}\`;
+        }
+
+        return \`
+          <div style="background: #0f1428; padding: 12px; border-left: 4px solid #ffc107; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <div style="color: #d4af37; font-weight: 600;">\${status.cardName}</div>
+              <div style="color: #a8b8e6; font-size: 0.9em;">\${statusInfo || 'No status'}</div>
+            </div>
+            <button class="btn-secondary" onclick="deleteOwnershipStatus('\${status.cardName.replace(/'/g, "\\\\'")}'); displayOrphanedCards();" style="padding: 6px 12px; font-size: 0.85em;">Remove</button>
+          </div>
+        \`;
+      }).join('');
+    }
+
+    async function clearAllOrphaned() {
+      if (!confirm('Clear all orphaned cards? This cannot be undone.')) {
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/ownership-status/orphaned/all', {
+          method: 'DELETE'
+        });
+
+        if (response.ok) {
+          await loadOwnershipStatuses();
+          displayOrphanedCards();
+          updateUI();
+        }
+      } catch (error) {
+        console.error('Error clearing orphaned cards:', error);
+        alert('Error clearing orphaned cards');
+      }
     }
 
     function updateCardDisplay(card) {
@@ -1535,8 +2064,21 @@ export const html = `<!DOCTYPE html>
             })
             .join('');
 
+          const remainingNeeded = Math.max(0, card.needed - totalOwned);
+          const statusBadges = getStatusBadgeHTML(card.name);
+          const actionButtons = viewOnlyMode ? '' : \`
+            <div class="card-actions">
+              <button onclick="openCardAcquiredModal('\${card.name.replace(/'/g, "\\\\'")}', \${remainingNeeded})">Card Acquired</button>
+              <button onclick="openGivingModal('\${card.name.replace(/'/g, "\\\\'")}', \${remainingNeeded})">Giving</button>
+              <button class="clear" onclick="deleteOwnershipStatus('\${card.name.replace(/'/g, "\\\\'")}')">Clear</button>
+            </div>
+          \`;
+
+          const checkbox = viewOnlyMode ? '' : \`<input type="checkbox" style="width: 18px; height: 18px; cursor: pointer;" onchange="toggleCardSelection('\${card.name.replace(/'/g, "\\\\'")}'); document.getElementById('bulkToolbarCount').textContent = selectedCards.size;" \${selectedCards.has(card.name) ? 'checked' : ''}>\`;
+
           return \`
-            <div class="card-item">
+            <div class="card-item" style="position: relative;">
+              \${checkbox ? \`<div style="position: absolute; top: 10px; right: 10px; z-index: 10;">\${checkbox}</div>\` : ''}
               <div class="card-image">
                 \${card.imageUrl ? \`<img src="\${card.imageUrl}" alt="\${card.name}" onerror="this.style.display='none'">\` : 'No image available'}
               </div>
@@ -1544,6 +2086,8 @@ export const html = `<!DOCTYPE html>
                 <div class="card-name">\${card.name}</div>
                 <div class="card-needed">Need: \${card.needed} | Owned: \${totalOwned}</div>
                 <div class="card-owners">\${ownersList || 'Not owned'}</div>
+                \${statusBadges ? \`<div>\${statusBadges}</div>\` : ''}
+                \${actionButtons}
               </div>
             </div>
           \`;

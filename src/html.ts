@@ -691,8 +691,8 @@ export const html = `<!DOCTYPE html>
     <header>
       <div style="display: flex; justify-content: space-between; align-items: center;">
         <div>
-          <h1>🃏 MTG Card Comparison</h1>
-          <p class="subtitle">Upload your card lists and compare ownership across friends</p>
+          <h1>🃏 Build a deck together</h1>
+          <p class="subtitle">Upload your card lists and compare ownership across friends to try and build something together.</p>
         </div>
         <div style="display: flex; align-items: baseline; gap: 12px; margin-right: 20px;">
           <button class="btn-primary btn-small" id="shareViewOnlyBtn" onclick="copyViewOnlyLink()">Share View Only</button>

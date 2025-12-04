@@ -13,3 +13,7 @@ vars = { ENVIRONMENT = "production" }
 binding = "STORAGE"
 bucket_name = "mtg-owner-comparison"
 preview = true
+
+[[routes]]
+pattern = "mtg.sraden.com/*"
+zone_name = "sraden.com"

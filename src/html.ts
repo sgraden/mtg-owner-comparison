@@ -212,7 +212,6 @@ export const html = `<!DOCTYPE html>
     .lists-container {
       display: flex;
       flex-direction: column;
-      gap: 12px;
       max-height: 400px;
       overflow-y: auto;
     }
@@ -226,6 +225,7 @@ export const html = `<!DOCTYPE html>
       align-items: center;
       border-left: 4px solid #d4af37;
       border: 2px solid #d4af37;
+      margin-bottom: 16px;
     }
 
     .list-item-name {
@@ -694,7 +694,7 @@ export const html = `<!DOCTYPE html>
           <h1>🃏 MTG Card Comparison</h1>
           <p class="subtitle">Upload your card lists and compare ownership across friends</p>
         </div>
-        <div style="display: flex; align-items: center; gap: 12px; margin-right: 20px;">
+        <div style="display: flex; align-items: baseline; gap: 12px; margin-right: 20px;">
           <button class="btn-primary btn-small" id="shareViewOnlyBtn" onclick="copyViewOnlyLink()">Share View Only</button>
           <div class="image-toggle" style="display: flex; align-items: center; gap: 12px;">
             <label style="color: #d4af37; font-weight: 600;">Local Mode:</label>
